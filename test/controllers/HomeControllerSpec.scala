@@ -5,8 +5,10 @@ import org.scalatest.matchers.must.Matchers.convertToAnyMustWrapper
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.http.Status.OK
 import play.api.mvc.ControllerComponents
-import play.api.test.Helpers.{GET, contentType, defaultAwaitTimeout, route, status, writeableOf_AnyContentAsEmpty}
+import play.api.test.Helpers._
+//import play.api.test.Helpers.{GET, contentType, defaultAwaitTimeout, route, status, writeableOf_AnyContentAsEmpty}
 import play.api.test.{FakeRequest, Helpers, Injecting}
+//import play.api.test.CSRFTokenHelper.CSRFFRequestHeader
 
 class HomeControllerSpec extends BaseSpec with Injecting with GuiceOneAppPerSuite {
 
@@ -20,7 +22,7 @@ class HomeControllerSpec extends BaseSpec with Injecting with GuiceOneAppPerSuit
 
       status(home) mustBe OK
       contentType(home) mustBe Some("text/html")
-
+      contentAsString(home) must include ("Welcome to your version of GitHub")
     }
 
     "render the index page from the application" in {
@@ -29,7 +31,7 @@ class HomeControllerSpec extends BaseSpec with Injecting with GuiceOneAppPerSuit
 
       status(home) mustBe OK
       contentType(home) mustBe Some("text/html")
-
+      contentAsString(home) must include ("Welcome to your version of GitHub")
     }
 
     "render the index page from the router" in {
@@ -38,7 +40,7 @@ class HomeControllerSpec extends BaseSpec with Injecting with GuiceOneAppPerSuit
 
       status(home) mustBe OK
       contentType(home) mustBe Some("text/html")
-
+      contentAsString(home) must include ("Welcome to your version of GitHub")
     }
   }
 }
