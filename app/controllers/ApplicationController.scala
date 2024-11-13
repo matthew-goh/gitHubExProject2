@@ -18,5 +18,22 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   }
 
   ///// API METHODS WITHOUT FRONTEND /////
+  def index(): Action[AnyContent] = Action.async { implicit request =>
+    repoService.index().map{ // dataRepository.index() is a Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]
+      case Right(item: Seq[UserModel]) => Ok {Json.toJson(item)}
+      case Left(error) => Status(error.httpResponseStatus)(error.reason)
+    }
+  }
 
+  def create(): Action[JsValue] = Action.async(parse.json) { implicit request =>
+    request.body.validate[UserModel] match { // valid or invalid request
+      case JsSuccess(userModel, _) =>
+        repoService.create(userModel).map{
+          case Right(_) => Created {request.body}
+          case Left(error) => BadRequest {error.reason}
+        }
+      // dataRepository.create() is a Future[Either[APIError.BadAPIResponse, DataModel]
+      case JsError(_) => Future(BadRequest {"Invalid request body"}) // ensure correct return type
+    }
+  }
 }

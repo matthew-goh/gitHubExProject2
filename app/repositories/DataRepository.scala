@@ -21,17 +21,40 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   domainFormat = UserModel.formats, // uses the implicit val formats in the UserModel object
   //-tells the driver how to read and write between a DataModel and JSON
   indexes = Seq(IndexModel(
-    Indexes.ascending("_username")
-  )), // can ensure the username to be unique
+    Indexes.ascending("username"),
+    IndexOptions().unique(true)  // Ensures the index is unique
+  )),
   replaceIndexes = false
 ) with DataRepositoryTrait {
 
+  def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]  = {
+    try {
+      collection.find().toFuture().map{ users: Seq[UserModel] => Right(users) }
+    }
+    catch {
+      case e: Exception => Future(Left(APIError.BadAPIResponse(404, "Database not found")))
+    }
+  }
+
+  def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
+    try {
+      collection.insertOne(user).toFuture()
+        .map(_ => Right(user))
+        .recover { case _ => Left(APIError.BadAPIResponse(500, "User already exists in database")) }
+    }
+    catch {
+      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to add user")))
+    }
+  }
+
+  // remove all data from Mongo with the same collection name
+  def deleteAll(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
 }
 
 @ImplementedBy(classOf[DataRepository])
 trait DataRepositoryTrait {
-//  def index(): Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]
-//  def create(book: DataModel): Future[Either[APIError.BadAPIResponse, DataModel]]
+  def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]
+  def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]]
 //  def read(id: String): Future[Either[APIError, DataModel]]
 //  def readBySpecifiedField(field: String, value: String): Future[Either[APIError, Seq[DataModel]]]
 //  def update(id: String, book: DataModel): Future[Either[APIError, result.UpdateResult]]
