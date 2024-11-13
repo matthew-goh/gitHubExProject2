@@ -16,4 +16,8 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
     repositoryTrait.create(user)
   }
+
+  def read(id: String): Future[Either[APIError, UserModel]] = {
+    repositoryTrait.read(id)
+  }
 }

@@ -8,7 +8,7 @@ import java.time.Instant
 
 // Your mongodb should contain users which will have the following information:
 // username, date account created, location, number of followers, number following
-case class UserModel(username: String, location: Option[String], accountCreatedTime: Instant, numFollowers: Int, numFollowing: Int)
+case class UserModel(username: String, location: String, accountCreatedTime: Instant, numFollowers: Int, numFollowing: Int)
 
 object UserModel {
   // Implicit Writes for Instant

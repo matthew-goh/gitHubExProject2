@@ -6,6 +6,8 @@ import play.api.mvc._
 import play.filters.csrf.CSRF
 import services.{GithubService, RepositoryService}
 
+import java.time.{Instant, ZoneId}
+import java.time.format.DateTimeFormatter
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -15,6 +17,22 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   ///// METHODS CALLED BY FRONTEND /////
   def accessToken(implicit request: Request[_]) = {
     CSRF.getToken
+  }
+
+  def formatDateTime(instant: Instant): String = {
+    val zonedDateTime = instant.atZone(ZoneId.of("UTC"))
+    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
+    zonedDateTime.format(formatter)
+  }
+
+  def searchUser(username: String): Action[AnyContent] = Action.async {implicit request =>
+    service.getGithubUser(username = username).value.map {
+      case Right(user) => {
+        val userModel = service.convertToUserModel(user)
+        Ok(views.html.usersearch(userModel, formatDateTime(userModel.accountCreatedTime)))
+      }
+      case Left(error) => BadRequest(views.html.unsuccessful("User not found"))
+    }
   }
 
   ///// API METHODS WITHOUT FRONTEND /////

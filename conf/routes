@@ -6,6 +6,8 @@
 # An example controller showing a sample home page
 GET     /                           controllers.HomeController.index
 
+GET     /github/users/:username     controllers.ApplicationController.searchUser(username: String)
+
 GET     /api     controllers.ApplicationController.index()
 POST     /api/create     controllers.ApplicationController.create()
 
@@ -17,3 +19,5 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 # create:
 # curl -H "Content-Type: application/json" -d '{ "username" : "test1", "location" : "London", "accountCreatedTime" : "2024-10-28T15:22:40Z", "numFollowers" : 1, "numFollowing" : 0 }' "localhost:9000/api/create" -i
 # curl -H "Content-Type: application/json" -d '{ "username" : "test2", "location" : null, "accountCreatedTime" : "2024-10-28T15:22:40Z", "numFollowers" : 1, "numFollowing" : 32 }' "localhost:9000/api/create" -i
+
+# curl "localhost:9000/github/users/matthew-goh" -i
