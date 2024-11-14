@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, UserModel}
+import models.{APIError, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -11,7 +11,7 @@ import play.api.http.Status
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.test.Helpers._
-import services.GithubService
+import services.{GithubService, GithubServiceSpec}
 
 import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
@@ -27,19 +27,51 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
   private val userModel: UserModel = UserModel(
     "user1",
-    None,
+    "",
     Instant.parse("2024-10-28T15:22:40Z"),
     0,
     2
   )
   private val newUserModel: UserModel = UserModel(
     "user1",
-    Some("London"),
+    "London",
     Instant.parse("2024-10-28T15:22:40Z"),
     0,
     2
   )
 
+  ///// METHODS CALLED BY FRONTEND /////
+  "searchUser" should {
+    "display the user's details" in {
+      (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
+        .expects(None, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testAPIResult.as[User]))
+        .once()
+
+      (mockGithubService.convertToUserModel(_: User))
+        .expects(*)
+        .returning(GithubServiceSpec.testAPIUserModel)
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.searchUser(username = "matthew-goh")(FakeRequest())
+      status(searchResult) shouldBe OK
+      contentAsString(searchResult) should include ("Username: matthew-goh")
+      contentAsString(searchResult) should include ("Account created: 28 Oct 2024 15:22")
+    }
+
+    "return a BadRequest" in {
+      (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
+        .expects(None, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.searchUser(username = "??")(FakeRequest())
+      status(searchResult) shouldBe BAD_REQUEST
+      contentAsString(searchResult) should include ("User not found")
+    }
+  }
+
+  ///// API METHODS WITHOUT FRONTEND /////
   "ApplicationController .index()" should {
     "list all users in the database" in {
       beforeEach()
