@@ -38,6 +38,27 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  def addUser(): Action[AnyContent] = Action.async {implicit request =>
+    accessToken
+    val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
+    val location: String = request.body.asFormUrlEncoded.flatMap(_.get("location").flatMap(_.headOption)).getOrElse("")
+    val accountCreated: Instant = Instant.parse(request.body.asFormUrlEncoded.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
+    val numFollowers: Int = request.body.asFormUrlEncoded.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
+    val numFollowing: Int = request.body.asFormUrlEncoded.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
+
+    val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
+    repoService.create(user).map{
+      case Right(_) => Ok(views.html.confirmation("Addition of user"))
+      case Left(error) => {
+        error.reason match {
+          case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
+          => BadRequest(views.html.unsuccessful("User already exists in database"))
+          case _ => BadRequest("Unable to add user.")
+        }
+      }
+    }
+  }
+
   ///// API METHODS WITHOUT FRONTEND /////
   def index(): Action[AnyContent] = Action.async { implicit request =>
     repoService.index().map{ // dataRepository.index() is a Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]

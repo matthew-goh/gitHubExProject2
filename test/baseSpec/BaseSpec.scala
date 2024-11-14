@@ -13,9 +13,6 @@ import play.api.inject.Injector
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.WSClient
 import play.api.mvc.{AnyContentAsEmpty, MessagesControllerComponents}
-import play.api.test.CSRFTokenHelper.CSRFFRequestHeader
-import play.api.test.FakeRequest
-import play.api.test.Helpers.{GET, POST}
 import repositories.DataRepository
 import services.{GithubService, RepositoryService}
 import shared.TestRequest

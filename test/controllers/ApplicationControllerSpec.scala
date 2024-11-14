@@ -71,6 +71,41 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
+  "ApplicationController .addUser()" should {
+    "add a user to the database" in {
+      beforeEach()
+      val addUserRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/add").withFormUrlEncodedBody(
+        "username" -> "user1",
+        "location" -> "",
+        "accountCreatedTime" -> "2024-10-28T15:22:40Z",
+        "numFollowers" -> "0",
+        "numFollowing" -> "2"
+      ) // .withCRSFToken not needed?
+      val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
+      status(addUserResult) shouldBe Status.OK
+      contentAsString(addUserResult) should include ("Addition of user successful!")
+      afterEach()
+    }
+
+    "return a BadRequest if the user is already in the database" in {
+      beforeEach()
+      val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
+      val createdResult: Future[Result] = TestApplicationController.create()(request)
+
+      val addUserRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/add").withFormUrlEncodedBody(
+        "username" -> "user1",
+        "location" -> "",
+        "accountCreatedTime" -> "2024-10-28T15:22:40Z",
+        "numFollowers" -> "0",
+        "numFollowing" -> "2"
+      )
+      val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
+      status(addUserResult) shouldBe Status.BAD_REQUEST
+      contentAsString(addUserResult) should include ("User already exists in database")
+      afterEach()
+    }
+  }
+
   ///// API METHODS WITHOUT FRONTEND /////
   "ApplicationController .index()" should {
     "list all users in the database" in {

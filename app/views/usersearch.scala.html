@@ -1,7 +1,6 @@
-@import java.time.format.DateTimeFormatter
-@import java.time.ZoneId
+@import helper._
 
-@(user: UserModel, formattedDateTime: String)
+@(user: UserModel, formattedDateTime: String)(implicit request: RequestHeader)
 @main("Find GitHub User"){
   <h1>Making GitHub with Scala Play</h1>
 
@@ -12,9 +11,15 @@
   <p>Number of followers: @user.numFollowers</p>
   <p>Number following: @user.numFollowing</p>
 
-@*  <form action="@routes.ApplicationController.updateBook(bookData._id)" method="GET" class="button-form">*@
-@*    <button type="submit">Update</button>*@
-@*  </form>*@
+  <form action="@routes.ApplicationController.addUser()" method="POST" class="button-form">
+    @CSRF.formField
+    <input type="hidden" name="username" value="@user.username" required>
+    <input type="hidden" name="location" value="@user.location">
+    <input type="hidden" name="accountCreatedTime" value="@user.accountCreatedTime" required>
+    <input type="hidden" name="numFollowers" value="@user.numFollowers" required>
+    <input type="hidden" name="numFollowing" value="@user.numFollowing" required>
+    <button type="submit">Add to database</button>
+  </form>
 @*  <form action="@routes.ApplicationController.deleteBook(bookData._id)" method="GET" class="button-form">*@
 @*    <button type="submit">Delete</button>*@
 @*  </form>*@

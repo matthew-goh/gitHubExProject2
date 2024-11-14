@@ -7,6 +7,7 @@
 GET     /                           controllers.HomeController.index
 
 GET     /github/users/:username     controllers.ApplicationController.searchUser(username: String)
+POST     /github/users/add     controllers.ApplicationController.addUser()
 
 GET     /api     controllers.ApplicationController.index()
 POST     /api/create     controllers.ApplicationController.create()
