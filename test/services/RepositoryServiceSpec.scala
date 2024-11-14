@@ -18,21 +18,21 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
 
   private val userModel: UserModel = UserModel(
     "user1",
-    None,
+    "",
     Instant.parse("2024-10-28T15:22:40Z"),
     0,
     2
   )
   private val newUserModel: UserModel = UserModel(
     "user1",
-    Some("London"),
+    "London",
     Instant.parse("2024-10-28T15:22:40Z"),
     0,
     2
   )
   private val userModel2: UserModel = UserModel(
     "user2",
-    None,
+    "",
     Instant.parse("2022-11-07T09:42:16Z"),
     24,
     13
