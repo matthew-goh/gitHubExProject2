@@ -9,6 +9,7 @@ GET     /                           controllers.HomeController.index
 GET     /userlisting     controllers.ApplicationController.listAllUsers()
 GET     /github/users/:username     controllers.ApplicationController.searchUser(username: String)
 POST     /github/users/add     controllers.ApplicationController.addUser()
+GET     /delete/:username     controllers.ApplicationController.deleteUser(username: String)
 
 GET     /api     controllers.ApplicationController.index()
 POST     /api/create     controllers.ApplicationController.create()

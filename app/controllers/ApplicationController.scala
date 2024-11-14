@@ -66,6 +66,13 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  def deleteUser(username: String): Action[AnyContent] = Action.async { implicit request =>
+    repoService.delete(username).map{
+      case Right(_) => Ok(views.html.confirmation("Delete"))
+      case Left(error) => BadRequest(views.html.unsuccessful("User not found in database"))
+    }
+  }
+
   ///// API METHODS WITHOUT FRONTEND /////
   def index(): Action[AnyContent] = Action.async { implicit request =>
     repoService.index().map{ // dataRepository.index() is a Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]

@@ -20,13 +20,12 @@
         <p>Number of followers: @user.numFollowers</p>
         <p>Number following: @user.numFollowing</p>
       </li>
-      <br>
 @*      <form action="@routes.ApplicationController.updateUser(user.username)" method="GET" class="button-form">*@
 @*        <button type="submit">Update</button>*@
 @*      </form>*@
-@*      <form action="@routes.ApplicationController.deleteUser(user.username)" method="GET" class="button-form">*@
-@*        <button type="submit">Delete</button>*@
-@*      </form>*@
+      <form action="@routes.ApplicationController.deleteUser(user.username)" method="GET" class="button-form">
+        <button type="submit">Delete</button>
+      </form>
     }
     </ul>
   }

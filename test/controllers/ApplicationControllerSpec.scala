@@ -138,6 +138,26 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
+  "ApplicationController .deleteUser()" should {
+    "delete a user from the database" in {
+      beforeEach()
+      val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
+      val createdResult: Future[Result] = TestApplicationController.create()(request)
+
+      val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
+      status(deleteResult) shouldBe Status.OK
+      contentAsString(deleteResult) should include ("Delete successful!")
+    }
+
+    "return a BadRequest if the user could not be found" in {
+      beforeEach()
+      val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
+      status(deleteResult) shouldBe Status.BAD_REQUEST
+      contentAsString(deleteResult) should include ("User not found in database")
+      afterEach()
+    }
+  }
+
   ///// API METHODS WITHOUT FRONTEND /////
   "ApplicationController .index()" should {
     "list all users in the database" in {
