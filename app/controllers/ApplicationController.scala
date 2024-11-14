@@ -32,7 +32,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
-  def searchUser(username: String): Action[AnyContent] = Action.async {implicit request =>
+  def getUserDetails(username: String): Action[AnyContent] = Action.async {implicit request =>
     service.getGithubUser(username = username).value.map {
       case Right(user) => {
         val userModel = service.convertToUserModel(user)
@@ -43,6 +43,12 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         case _ => BadRequest(views.html.unsuccessful("Could not connect"))
       }}
     }
+  }
+
+  def searchUser(): Action[AnyContent] = Action.async {implicit request =>
+    accessToken
+    val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
+    Future.successful(Redirect(routes.ApplicationController.getUserDetails(username)))
   }
 
   def addUser(): Action[AnyContent] = Action.async {implicit request =>

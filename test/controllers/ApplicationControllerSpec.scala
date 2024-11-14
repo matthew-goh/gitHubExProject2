@@ -72,7 +72,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
-  "ApplicationController .searchUser()" should {
+  "ApplicationController .getUserDetails()" should {
     "display the user's details" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
         .expects(None, *, *)
@@ -85,7 +85,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         .once()
 
       // testRequest.fakeRequest includes CRSFToken - needed if resulting page has a POST form
-      val searchResult: Future[Result] = TestApplicationController.searchUser(username = "matthew-goh")(testRequest.fakeRequest)
+      val searchResult: Future[Result] = TestApplicationController.getUserDetails(username = "matthew-goh")(testRequest.fakeRequest)
       status(searchResult) shouldBe OK
       contentAsString(searchResult) should include ("Username: matthew-goh")
       contentAsString(searchResult) should include ("Account created: 28 Oct 2024 15:22")
@@ -97,9 +97,20 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "User not found")))
         .once()
 
-      val searchResult: Future[Result] = TestApplicationController.searchUser(username = "??")(FakeRequest())
+      val searchResult: Future[Result] = TestApplicationController.getUserDetails(username = "??")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
       contentAsString(searchResult) should include ("User not found")
+    }
+  }
+
+  "ApplicationController .searchUser()" should {
+    "redirect to user details page when a username is searched" in {
+      val searchRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/searchuser").withFormUrlEncodedBody(
+        "username" -> "user1"
+      )
+      val searchResult: Future[Result] = TestApplicationController.searchUser()(searchRequest)
+      status(searchResult) shouldBe Status.SEE_OTHER
+      redirectLocation(searchResult) shouldBe Some("/github/users/user1")
     }
   }
 
