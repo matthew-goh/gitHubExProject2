@@ -57,4 +57,35 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsError(_) => Future(BadRequest {"Invalid request body"}) // ensure correct return type
     }
   }
+
+  def read(username: String): Action[AnyContent] = Action.async { implicit request =>
+    repoService.read(username).map{ // dataRepository.read() is a Future[Either[APIError, DataModel]]
+      case Right(item) => Ok {Json.toJson(item)}
+      case Left(error) => NotFound {error.reason}
+    }
+  }
+
+  def update(username: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
+    request.body.validate[UserModel] match {
+      case JsSuccess(userModel, _) =>
+        repoService.update(username, userModel).map{
+          case Right(_) => Accepted {Json.toJson(request.body)}
+          case Left(error) => Status(error.httpResponseStatus)(error.reason)
+        } // dataRepository.update() is a Future[Either[APIError, result.UpdateResult]]
+      case JsError(_) => Future(BadRequest {"Invalid request body"})
+    }
+  }
+  def updateWithValue(username: String, field: String, newValue: String): Action[AnyContent] = Action.async { implicit request =>
+    repoService.updateWithValue(username, field, newValue).map{
+      case Right(_) => Accepted {s"$field of user $username has been updated to: $newValue"}
+      case Left(error) => BadRequest {error.reason}
+    }
+  }
+
+  def delete(username: String): Action[AnyContent] = Action.async { implicit request =>
+    repoService.delete(username).map{
+      case Right(_) => Accepted {s"$username has been deleted from the database"}
+      case Left(error) => BadRequest {error.reason}
+    } // dataRepository.delete() is a Future[Either[APIError, result.DeleteResult]]
+  }
 }
