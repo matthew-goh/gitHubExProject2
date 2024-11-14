@@ -1,13 +1,15 @@
 @import helper._
+@import java.time.format.DateTimeFormatter
+@import java.time.ZoneId
 
-@(user: UserModel, formattedDateTime: String)(implicit request: RequestHeader)
+@(user: UserModel)(implicit request: RequestHeader)
 @main("Find GitHub User"){
   <h1>Making GitHub with Scala Play</h1>
 
   <h2>User details</h2>
   <p>Username: @user.username</p>
   <p>Location: @user.location</p>
-  <p>Account created: @formattedDateTime</p>
+  <p>Account created: @{user.accountCreatedTime.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}</p>
   <p>Number of followers: @user.numFollowers</p>
   <p>Number following: @user.numFollowing</p>
 

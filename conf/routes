@@ -6,6 +6,7 @@
 # An example controller showing a sample home page
 GET     /                           controllers.HomeController.index
 
+GET     /userlisting     controllers.ApplicationController.listAllUsers()
 GET     /github/users/:username     controllers.ApplicationController.searchUser(username: String)
 POST     /github/users/add     controllers.ApplicationController.addUser()
 

@@ -39,8 +39,39 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     0,
     2
   )
+  private val userModel2: UserModel = UserModel(
+    "user2",
+    "",
+    Instant.parse("2022-11-07T09:42:16Z"),
+    24,
+    13
+  )
 
   ///// METHODS CALLED BY FRONTEND /////
+  "ApplicationController .listAllUsers()" should {
+    "list all users in the database" in {
+      beforeEach()
+      val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
+      val createdResult: Future[Result] = TestApplicationController.create()(request)
+      val request2: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel2))
+      val createdResult2: Future[Result] = TestApplicationController.create()(request2)
+
+      val listingResult: Future[Result] = TestApplicationController.listAllUsers()(FakeRequest())
+      status(listingResult) shouldBe Status.OK
+      contentAsString(listingResult) should include ("user1")
+      contentAsString(listingResult) should include ("Account created: 07 Nov 2022 09:42")
+      afterEach()
+    }
+
+    "show 'no users found' if the database is empty" in {
+      beforeEach()
+      val listingResult: Future[Result] = TestApplicationController.listAllUsers()(FakeRequest())
+      status(listingResult) shouldBe Status.OK
+      contentAsString(listingResult) should include ("No users found")
+      afterEach()
+    }
+  }
+
   "ApplicationController .searchUser()" should {
     "display the user's details" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
@@ -53,7 +84,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         .returning(GithubServiceSpec.testAPIUserModel)
         .once()
 
-      val searchResult: Future[Result] = TestApplicationController.searchUser(username = "matthew-goh")(FakeRequest())
+      // testRequest.fakeRequest includes CRSFToken - needed if resulting page has a POST form
+      val searchResult: Future[Result] = TestApplicationController.searchUser(username = "matthew-goh")(testRequest.fakeRequest)
       status(searchResult) shouldBe OK
       contentAsString(searchResult) should include ("Username: matthew-goh")
       contentAsString(searchResult) should include ("Account created: 28 Oct 2024 15:22")
@@ -113,6 +145,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
+      Thread.sleep(100)
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
       status(indexResult) shouldBe Status.OK
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq(userModel)

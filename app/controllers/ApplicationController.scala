@@ -25,11 +25,18 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     zonedDateTime.format(formatter)
   }
 
+  def listAllUsers(): Action[AnyContent] = Action.async {implicit request =>
+    repoService.index().map{
+      case Right(userList: Seq[UserModel]) => Ok(views.html.userlisting(userList))
+      case Left(error) => Status(error.httpResponseStatus)(error.reason)
+    }
+  }
+
   def searchUser(username: String): Action[AnyContent] = Action.async {implicit request =>
     service.getGithubUser(username = username).value.map {
       case Right(user) => {
         val userModel = service.convertToUserModel(user)
-        Ok(views.html.usersearch(userModel, formatDateTime(userModel.accountCreatedTime)))
+        Ok(views.html.usersearch(userModel))
       }
       case Left(error) => { error.reason match {
         case "Bad response from upstream; got status: 404, and got reason: User not found" => NotFound(views.html.unsuccessful("User not found"))
