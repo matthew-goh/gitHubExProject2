@@ -50,14 +50,14 @@ trait BaseSpecWithApplication extends BaseSpec with GuiceOneServerPerSuite with 
 
   protected val testRequest: TestRequest = new TestRequest(messagesApi)
 
-  lazy val fakeRequest: FakeRequest[AnyContentAsEmpty.type] =
-    FakeRequest("", "").withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
-  implicit val messages: Messages = messagesApi.preferred(fakeRequest)
-
-  // methods we can use in the tests to pass fake requests to the controller
-  def buildPost(url: String): FakeRequest[AnyContentAsEmpty.type] =
-    FakeRequest(POST, url).withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
-
-  def buildGet(url: String): FakeRequest[AnyContentAsEmpty.type] =
-    FakeRequest(GET, url).withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
+//  lazy val fakeRequest: FakeRequest[AnyContentAsEmpty.type] =
+//    FakeRequest("", "").withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
+//  implicit val messages: Messages = messagesApi.preferred(fakeRequest)
+//
+//  // methods we can use in the tests to pass fake requests to the controller
+//  def buildPost(url: String): FakeRequest[AnyContentAsEmpty.type] =
+//    FakeRequest(POST, url).withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
+//
+//  def buildGet(url: String): FakeRequest[AnyContentAsEmpty.type] =
+//    FakeRequest(GET, url).withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
 }
