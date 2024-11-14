@@ -10,6 +10,10 @@ GET     /github/users/:username     controllers.ApplicationController.searchUser
 
 GET     /api     controllers.ApplicationController.index()
 POST     /api/create     controllers.ApplicationController.create()
+GET     /api/:username     controllers.ApplicationController.read(username: String)
+PUT     /api/:username     controllers.ApplicationController.update(username: String)
+PUT     /api/:username/:field/:value     controllers.ApplicationController.updateWithValue(username: String, field: String, value: String)
+DELETE     /api/:username     controllers.ApplicationController.delete(username: String)
 
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
@@ -18,6 +22,14 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 # index: curl "localhost:9000/api" -i
 # create:
 # curl -H "Content-Type: application/json" -d '{ "username" : "test1", "location" : "London", "accountCreatedTime" : "2024-10-28T15:22:40Z", "numFollowers" : 1, "numFollowing" : 0 }' "localhost:9000/api/create" -i
-# curl -H "Content-Type: application/json" -d '{ "username" : "test2", "location" : null, "accountCreatedTime" : "2024-10-28T15:22:40Z", "numFollowers" : 1, "numFollowing" : 32 }' "localhost:9000/api/create" -i
+# curl -H "Content-Type: application/json" -d '{ "username" : "test2", "location" : "", "accountCreatedTime" : "2024-10-28T15:22:40Z", "numFollowers" : 1, "numFollowing" : 32 }' "localhost:9000/api/create" -i
+
+# read: curl "localhost:9000/api/test1" -i
+# update: curl -X PUT -H "Content-Type: application/json" -d '{ "username" : "test1", "location" : "Singapore", "accountCreatedTime" : "2024-10-28T15:22:40Z", "numFollowers" : 1, "numFollowing" : 2 }' "localhost:9000/api/test1" -i
+# updateWithField:
+# curl -X PUT "localhost:9000/api/test1/location/London" -i
+# curl -X PUT "localhost:9000/api/test1/numFollowers/2" -i
+
+# delete: curl -X DELETE "localhost:9000/api/test2"
 
 # curl "localhost:9000/github/users/matthew-goh" -i

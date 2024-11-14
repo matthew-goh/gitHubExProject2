@@ -37,6 +37,8 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     24,
     13
   )
+  private val testUpdateResult: UpdateResult = UpdateResult.acknowledged(1, 1, null)
+  private val testDeleteResult: DeleteResult = DeleteResult.acknowledged(1)
 
   "index" should {
     "return a list of DataModels" in {
@@ -84,6 +86,102 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
 
       whenReady(testRepoService.create(userModel)) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add book"))
+      }
+    }
+  }
+
+  "read" should {
+    "return a UserModel" in {
+      (mockRepoTrait.read(_: String))
+        .expects(*)
+        .returning(Future(Right(userModel)))
+        .once()
+
+      whenReady(testRepoService.read("user1")) { result =>
+        result shouldBe Right(userModel)
+      }
+    }
+
+    "return an error" in {
+      (mockRepoTrait.read(_: String))
+        .expects(*)
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 404, and got reason: User not found"))))
+        .once()
+
+      whenReady(testRepoService.read("abcd")) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 404, and got reason: User not found"))
+      }
+    }
+  }
+
+  "update" should {
+    "return an UpdateResult" in {
+      (mockRepoTrait.update(_: String, _: UserModel))
+        .expects(*, *)
+        .returning(Future(Right(testUpdateResult)))
+        .once()
+
+      whenReady(testRepoService.update("user1", newUserModel)) { result =>
+        result shouldBe Right(testUpdateResult)
+      }
+    }
+
+    "return an error" in {
+      (mockRepoTrait.update(_: String, _: UserModel))
+        .expects(*, *)
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to update user"))))
+        .once()
+
+      whenReady(testRepoService.update("user1", newUserModel)) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to update user"))
+      }
+    }
+  }
+
+  "updateWithValue" should {
+    "return an UpdateResult" in {
+      (mockRepoTrait.updateWithValue(_: String, _: String, _: String))
+        .expects(*, *, *)
+        .returning(Future(Right(testUpdateResult)))
+        .once()
+
+      whenReady(testRepoService.updateWithValue("user1", "numFollowers", "1")) { result =>
+        result shouldBe Right(testUpdateResult)
+      }
+    }
+
+    "return an error" in {
+      (mockRepoTrait.updateWithValue(_: String, _: String, _: String))
+        .expects(*, *, *)
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Invalid field to update"))))
+        .once()
+
+      whenReady(testRepoService.updateWithValue("user1", "followers", "1")) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Invalid field to update"))
+      }
+    }
+  }
+
+  "delete" should {
+    "return a DeleteResult" in {
+      (mockRepoTrait.delete(_: String))
+        .expects(*)
+        .returning(Future(Right(testDeleteResult)))
+        .once()
+
+      whenReady(testRepoService.delete("user1")) { result =>
+        result shouldBe Right(testDeleteResult)
+      }
+    }
+
+    "return an error" in {
+      (mockRepoTrait.delete(_: String))
+        .expects(*)
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to delete user"))))
+        .once()
+
+      whenReady(testRepoService.delete("abcd")) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to delete user"))
       }
     }
   }

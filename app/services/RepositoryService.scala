@@ -17,7 +17,20 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
     repositoryTrait.create(user)
   }
 
-  def read(id: String): Future[Either[APIError, UserModel]] = {
-    repositoryTrait.read(id)
+  def read(username: String): Future[Either[APIError, UserModel]] = {
+    repositoryTrait.read(username)
+  }
+
+  def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]] = {
+    repositoryTrait.update(username, user)
+  }
+
+  def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
+    repositoryTrait.updateWithValue(username, field, newValue)
+  }
+
+  // delete a document
+  def delete(username: String): Future[Either[APIError, result.DeleteResult]] = {
+    repositoryTrait.delete(username)
   }
 }

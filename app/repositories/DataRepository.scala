@@ -58,7 +58,6 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
 //      Filters.regex(field, s".*${value}.*", "i") // case-insensitive regex filter, containing search value
 //    )
 
-  // retrieve a DataModel object from database - uses an id parameter
   def read(username: String): Future[Either[APIError, UserModel]] = {
     try {
       collection.find(byUsername(username)).headOption flatMap {
@@ -71,6 +70,67 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
     }
   }
 
+  def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]] = {
+    try {
+      collection.replaceOne(
+        filter = byUsername(username),
+        replacement = user,
+        options = new ReplaceOptions().upsert(true) //What happens when we set this to false?
+      ).toFuture().map(result => Right(result))
+    }
+    catch {
+      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
+    }
+  }
+  // Right result is e.g. AcknowledgedUpdateResult{matchedCount=1, modifiedCount=1, upsertedId=null}
+
+  def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
+    field match {
+      case "location" =>
+        try {
+          collection.updateOne(Filters.equal("username", username), Updates.set(field, newValue)).toFuture().map{
+            updateResult =>
+              if (updateResult.getMatchedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
+              else Right(updateResult)
+          }
+        }
+        catch {
+          case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
+        }
+      case "numFollowers" | "numFollowing" =>
+        if(!newValue.forall(Character.isDigit)) {
+          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
+        } else {
+          try{
+            collection.updateOne(Filters.equal("username", username), Updates.set(field, newValue.toInt)).toFuture().map{
+              updateResult =>
+                if (updateResult.getMatchedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
+                else Right(updateResult)
+            }
+          }
+          catch {
+            case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
+          }
+        }
+      case _ => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
+    }
+  }
+
+  def delete(username: String): Future[Either[APIError, result.DeleteResult]] = {
+    try {
+      collection.deleteOne(
+        filter = byUsername(username)
+      ).toFuture().map {
+        deleteResult =>
+          if (deleteResult.getDeletedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
+          else Right(deleteResult)
+      }
+    }
+    catch {
+      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to delete user")))
+    }
+  }
+
   // remove all data from Mongo with the same collection name
   def deleteAll(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
 }
@@ -79,9 +139,9 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
 trait DataRepositoryTrait {
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]]
-  def read(id: String): Future[Either[APIError, UserModel]]
+  def read(username: String): Future[Either[APIError, UserModel]]
 //  def readBySpecifiedField(field: String, value: String): Future[Either[APIError, Seq[DataModel]]]
-//  def update(id: String, book: DataModel): Future[Either[APIError, result.UpdateResult]]
-//  def updateWithValue(id: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]]
-//  def delete(id: String): Future[Either[APIError, result.DeleteResult]]
+  def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]]
+  def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]]
+  def delete(username: String): Future[Either[APIError, result.DeleteResult]]
 }
