@@ -41,7 +41,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   )
 
   ///// METHODS CALLED BY FRONTEND /////
-  "searchUser" should {
+  "ApplicationController .searchUser()" should {
     "display the user's details" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
         .expects(None, *, *)
@@ -59,14 +59,14 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(searchResult) should include ("Account created: 28 Oct 2024 15:22")
     }
 
-    "return a BadRequest" in {
+    "return a NotFound if the user is not found" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
         .expects(None, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "User not found")))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.searchUser(username = "??")(FakeRequest())
-      status(searchResult) shouldBe BAD_REQUEST
+      status(searchResult) shouldBe NOT_FOUND
       contentAsString(searchResult) should include ("User not found")
     }
   }

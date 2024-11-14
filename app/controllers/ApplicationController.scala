@@ -31,7 +31,10 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         val userModel = service.convertToUserModel(user)
         Ok(views.html.usersearch(userModel, formatDateTime(userModel.accountCreatedTime)))
       }
-      case Left(error) => BadRequest(views.html.unsuccessful("User not found"))
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: User not found" => NotFound(views.html.unsuccessful("User not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
     }
   }
 

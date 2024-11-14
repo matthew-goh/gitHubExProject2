@@ -14,13 +14,19 @@ class GithubConnector @Inject()(ws: WSClient) {
     val response = request.get()
     // EitherT allows us to return either Future[APIError] or Future[Response]
     EitherT {
-      response
-        .map {
-          result => Right(result.json.as[Response])
+      response.map {
+        result => {
+          val resultJson: JsValue = result.json
+          val message: Option[String] = (resultJson \ "message").asOpt[String]
+          message match {
+            case None => Right(result.json.as[Response])
+            case Some(_) => Left(APIError.BadAPIResponse(404, "User not found")) // message is "Not Found"
+          }
         }
-        .recover { //case _: WSResponse =>
-          case _ => Left(APIError.BadAPIResponse(500, "Could not connect"))
-        }
+      }
+      .recover { //case _: WSResponse =>
+        case _ => Left(APIError.BadAPIResponse(500, "Could not connect"))
+      }
     }
   }
 }
