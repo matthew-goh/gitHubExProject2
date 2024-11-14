@@ -1,20 +1,27 @@
+@import helper._
 @import java.time.format.DateTimeFormatter
 @import java.time.ZoneId
 
-@(user: UserModel, formattedDateTime: String)
+@(user: UserModel)(implicit request: RequestHeader)
 @main("Find GitHub User"){
   <h1>Making GitHub with Scala Play</h1>
 
   <h2>User details</h2>
   <p>Username: @user.username</p>
   <p>Location: @user.location</p>
-  <p>Account created: @formattedDateTime</p>
+  <p>Account created: @{user.accountCreatedTime.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}</p>
   <p>Number of followers: @user.numFollowers</p>
   <p>Number following: @user.numFollowing</p>
 
-@*  <form action="@routes.ApplicationController.updateBook(bookData._id)" method="GET" class="button-form">*@
-@*    <button type="submit">Update</button>*@
-@*  </form>*@
+  <form action="@routes.ApplicationController.addUser()" method="POST" class="button-form">
+    @CSRF.formField
+    <input type="hidden" name="username" value="@user.username" required>
+    <input type="hidden" name="location" value="@user.location">
+    <input type="hidden" name="accountCreatedTime" value="@user.accountCreatedTime" required>
+    <input type="hidden" name="numFollowers" value="@user.numFollowers" required>
+    <input type="hidden" name="numFollowing" value="@user.numFollowing" required>
+    <button type="submit">Add to database</button>
+  </form>
 @*  <form action="@routes.ApplicationController.deleteBook(bookData._id)" method="GET" class="button-form">*@
 @*    <button type="submit">Delete</button>*@
 @*  </form>*@

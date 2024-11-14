@@ -25,16 +25,51 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     zonedDateTime.format(formatter)
   }
 
+  def listAllUsers(): Action[AnyContent] = Action.async {implicit request =>
+    repoService.index().map{
+      case Right(userList: Seq[UserModel]) => Ok(views.html.userlisting(userList))
+      case Left(error) => Status(error.httpResponseStatus)(error.reason)
+    }
+  }
+
   def searchUser(username: String): Action[AnyContent] = Action.async {implicit request =>
     service.getGithubUser(username = username).value.map {
       case Right(user) => {
         val userModel = service.convertToUserModel(user)
-        Ok(views.html.usersearch(userModel, formatDateTime(userModel.accountCreatedTime)))
+        Ok(views.html.usersearch(userModel))
       }
       case Left(error) => { error.reason match {
         case "Bad response from upstream; got status: 404, and got reason: User not found" => NotFound(views.html.unsuccessful("User not found"))
         case _ => BadRequest(views.html.unsuccessful("Could not connect"))
       }}
+    }
+  }
+
+  def addUser(): Action[AnyContent] = Action.async {implicit request =>
+    accessToken
+    val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
+    val location: String = request.body.asFormUrlEncoded.flatMap(_.get("location").flatMap(_.headOption)).getOrElse("")
+    val accountCreated: Instant = Instant.parse(request.body.asFormUrlEncoded.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
+    val numFollowers: Int = request.body.asFormUrlEncoded.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
+    val numFollowing: Int = request.body.asFormUrlEncoded.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
+
+    val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
+    repoService.create(user).map{
+      case Right(_) => Ok(views.html.confirmation("Addition of user"))
+      case Left(error) => {
+        error.reason match {
+          case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
+          => BadRequest(views.html.unsuccessful("User already exists in database"))
+          case _ => BadRequest("Unable to add user.")
+        }
+      }
+    }
+  }
+
+  def deleteUser(username: String): Action[AnyContent] = Action.async { implicit request =>
+    repoService.delete(username).map{
+      case Right(_) => Ok(views.html.confirmation("Delete"))
+      case Left(error) => BadRequest(views.html.unsuccessful("User not found in database"))
     }
   }
 
