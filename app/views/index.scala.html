@@ -1,5 +1,6 @@
-@()
+@import helper._
 
+@()(implicit request: RequestHeader)
 @main("GitHub Example") {
   <div class="container mb-5">
     <h1>Welcome to your version of GitHub</h1>
@@ -9,6 +10,14 @@
 
   <div class="container mb-5">
     <p><a href="@routes.ApplicationController.listAllUsers()"> Show all users in database </a></p>
+    <br>
+    <h3>Search for a GitHub user</h3>
+    @form(action = routes.ApplicationController.searchUser()) {
+      @CSRF.formField
+      <div>
+        <input type="text" name="username" placeholder="Enter username" required>
+        <button type="submit">Search</button>
+      </div>
+    }
   </div>
-
 }
