@@ -19,14 +19,35 @@ class GithubConnector @Inject()(ws: WSClient) {
           val resultJson: JsValue = result.json
           val message: Option[String] = (resultJson \ "message").asOpt[String]
           message match {
-            case None => Right(result.json.as[Response])
-            case Some(_) => Left(APIError.BadAPIResponse(404, "User not found")) // message is "Not Found"
+            case None => Right(resultJson.as[Response])
+            case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
           }
         }
       }
       .recover { //case _: WSResponse =>
         case _ => Left(APIError.BadAPIResponse(500, "Could not connect"))
       }
+    }
+  }
+
+  def getList[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Seq[Response]] = {
+    val request = ws.url(url)
+    val response = request.get()
+    // EitherT allows us to return either Future[APIError] or Future[Response]
+    EitherT {
+      response.map {
+          result => {
+            val resultJson: JsValue = result.json
+            val message: Option[String] = (resultJson \ "message").asOpt[String]
+            message match {
+              case None => Right(resultJson.as[Seq[Response]])
+              case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+            }
+          }
+        }
+        .recover { //case _: WSResponse =>
+          case _ => Left(APIError.BadAPIResponse(500, "Could not connect"))
+        }
     }
   }
 }

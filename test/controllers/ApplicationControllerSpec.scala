@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, User, UserModel}
+import models.{APIError, GithubRepo, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -94,7 +94,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a NotFound if the user is not found" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
         .expects(None, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "User not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getUserDetails(username = "??")(FakeRequest())
@@ -169,6 +169,32 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
+  "ApplicationController .getUserRepos()" should {
+    "list the user's repositories" in {
+      (mockGithubService.getGithubRepos(_: Option[String], _: String)(_: ExecutionContext))
+        .expects(None, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testAPIRepoResult.as[Seq[GithubRepo]]))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getUserRepos(username = "matthew-goh")(FakeRequest())
+      status(searchResult) shouldBe OK
+      contentAsString(searchResult) should include ("Public Repositories of matthew-goh")
+      contentAsString(searchResult) should include ("gitHubExProject2")
+      contentAsString(searchResult) should include ("play-template")
+    }
+
+    "return a NotFound if the user is not found" in {
+      (mockGithubService.getGithubRepos(_: Option[String], _: String)(_: ExecutionContext))
+        .expects(None, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getUserRepos(username = "??")(FakeRequest())
+      status(searchResult) shouldBe NOT_FOUND
+      contentAsString(searchResult) should include ("User not found")
+    }
+  }
+
   ///// API METHODS WITHOUT FRONTEND /////
   "ApplicationController .index()" should {
     "list all users in the database" in {
@@ -226,6 +252,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
+      Thread.sleep(100)
       val readResult: Future[Result] = TestApplicationController.read("user1")(FakeRequest())
       status(readResult) shouldBe Status.OK
       contentAsJson(readResult).as[UserModel] shouldBe userModel

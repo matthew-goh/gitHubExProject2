@@ -12,6 +12,11 @@ POST     /searchuser     controllers.ApplicationController.searchUser()
 POST     /github/users/add     controllers.ApplicationController.addUser()
 GET     /delete/:username     controllers.ApplicationController.deleteUser(username: String)
 
+# https://api.github.com/users/matthew-goh/repos
+GET     /github/users/:username/repositories     controllers.ApplicationController.getUserRepos(username: String)
+
+# https://api.github.com/repos/matthew-goh/scala101/contents/src
+
 GET     /api     controllers.ApplicationController.index()
 POST     /api/create     controllers.ApplicationController.create()
 GET     /api/:username     controllers.ApplicationController.read(username: String)

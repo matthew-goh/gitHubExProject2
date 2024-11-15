@@ -39,7 +39,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         Ok(views.html.usersearch(userModel))
       }
       case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: User not found" => NotFound(views.html.unsuccessful("User not found"))
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User not found"))
         case _ => BadRequest(views.html.unsuccessful("Could not connect"))
       }}
     }
@@ -76,6 +76,16 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     repoService.delete(username).map{
       case Right(_) => Ok(views.html.confirmation("Delete"))
       case Left(error) => BadRequest(views.html.unsuccessful("User not found in database"))
+    }
+  }
+
+  def getUserRepos(username: String): Action[AnyContent] = Action.async {implicit request =>
+    service.getGithubRepos(username = username).value.map {
+      case Right(repoList) => Ok(views.html.userrepos(repoList, username))
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
     }
   }
 
