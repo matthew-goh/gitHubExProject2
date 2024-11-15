@@ -13,6 +13,8 @@
   <p>Number of followers: @user.numFollowers</p>
   <p>Number following: @user.numFollowing</p>
 
+  <p><a href="@routes.ApplicationController.getUserRepos(user.username)"> <b>See repositories</b> </a></p>
+
   <form action="@routes.ApplicationController.addUser()" method="POST" class="button-form">
     @CSRF.formField
     <input type="hidden" name="username" value="@user.username" required>

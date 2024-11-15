@@ -1,0 +1,22 @@
+@(repoList: Seq[GithubRepo], username: String)
+@main("Repositories"){
+    <h1>Making GitHub with Scala Play</h1>
+
+    <p><a href="@routes.HomeController.index"> Back to Home </a></p>
+
+    <h2>Public Repositories of @username</h2>
+    @if(repoList.isEmpty) {
+        <p>No repositories found.</p>
+    } else {
+        <ul>
+        @for(repo <- repoList) {
+            <li>
+                <p>@repo.name</p>
+@*                <p>Location: @user.location</p>*@
+@*                <p>Number of followers: @user.numFollowers</p>*@
+@*                <p>Number following: @user.numFollowing</p>*@
+            </li>
+        }
+        </ul>
+    }
+}
