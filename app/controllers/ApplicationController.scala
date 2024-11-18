@@ -89,6 +89,16 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  def getRepoItems(username: String, repoName: String): Action[AnyContent] = Action.async {implicit request =>
+    service.getRepoItems(username = username, repoName = repoName).value.map {
+      case Right(repoItemList) => Ok(views.html.repoitems(repoItemList, username, repoName))
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
+    }
+  }
+
   ///// API METHODS WITHOUT FRONTEND /////
   def index(): Action[AnyContent] = Action.async { implicit request =>
     repoService.index().map{ // dataRepository.index() is a Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]

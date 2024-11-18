@@ -13,9 +13,9 @@ POST     /github/users/add     controllers.ApplicationController.addUser()
 GET     /delete/:username     controllers.ApplicationController.deleteUser(username: String)
 
 # https://api.github.com/users/matthew-goh/repos
-GET     /github/users/:username/repositories     controllers.ApplicationController.getUserRepos(username: String)
-
+GET     /github/users/:username/repos     controllers.ApplicationController.getUserRepos(username: String)
 # https://api.github.com/repos/matthew-goh/scala101/contents/src
+GET     /github/users/:username/repos/:repoName     controllers.ApplicationController.getRepoItems(username: String, repoName: String)
 
 GET     /api     controllers.ApplicationController.index()
 POST     /api/create     controllers.ApplicationController.create()

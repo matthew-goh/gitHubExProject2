@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, GithubRepo, User, UserModel}
+import models.{APIError, GithubRepo, RepoItem, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -192,6 +192,32 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val searchResult: Future[Result] = TestApplicationController.getUserRepos(username = "??")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
       contentAsString(searchResult) should include ("User not found")
+    }
+  }
+
+  "ApplicationController .getRepoItems()" should {
+    "list the repository items" in {
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getRepoItems(username = "matthew-goh", repoName = "scala101")(FakeRequest())
+      status(searchResult) shouldBe OK
+      contentAsString(searchResult) should include ("Repository scala101 by matthew-goh")
+      contentAsString(searchResult) should include (".gitignore")
+      contentAsString(searchResult) should include ("src")
+    }
+
+    "return a NotFound if the repository is not found" in {
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getRepoItems(username = "matthew-goh", repoName = "abc")(FakeRequest())
+      status(searchResult) shouldBe NOT_FOUND
+      contentAsString(searchResult) should include ("User or repository not found")
     }
   }
 

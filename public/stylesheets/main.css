@@ -93,3 +93,17 @@ th, td {
     border: 1px solid grey;
     padding: 8px; /* Adds spacing inside the cells */
 }
+
+/* Icons */
+.icon-container {
+    display: flex;
+    align-items: center; /* vertical alignment */
+    /*justify-content: center;*/
+    height: 28px;
+}
+
+.file-icon {
+    width: auto;
+    height: 22px;
+    margin: 10px 10px 0 10px; /* top, right, bottom, left */
+}

@@ -20,6 +20,7 @@
         <p>Number of followers: @user.numFollowers</p>
         <p>Number following: @user.numFollowing</p>
       </li>
+      <p><a href="@routes.ApplicationController.getUserRepos(user.username)"> <b>See repositories</b> </a></p>
 @*      <form action="@routes.ApplicationController.updateUser(user.username)" method="GET" class="button-form">*@
 @*        <button type="submit">Update</button>*@
 @*      </form>*@
