@@ -1,0 +1,20 @@
+@import java.util.Base64
+
+@import play.twirl.api.HtmlFormat.raw
+
+@(file: FileInfo, username: String, repoName: String)
+@main("File Details"){
+    <h1>Making GitHub with Scala Play</h1>
+
+    <p><a href="@routes.HomeController.index"> Back to Home </a></p>
+
+    <h2>Repository @repoName by @username</h2>
+    <h3>Details of <i>@file.name</i></h3>
+    <p><b>Path:</b> @repoName/@file.path</p>
+    <p><b>Contents:</b> <br>
+        @* new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))) is the decoded string (newlines are somehow preserved) *@
+        @* @raw(decodedString.replace("\n", "<br>")) is to change all newlines to <br> so that it displays on a new line on the page *@
+        @raw(new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))).replace("\n", "<br>"))
+    </p>
+
+}

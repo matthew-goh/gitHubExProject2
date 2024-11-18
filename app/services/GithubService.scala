@@ -2,7 +2,7 @@ package services
 
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
 import play.api.libs.json.JsValue
 
 import javax.inject._
@@ -23,7 +23,11 @@ class GithubService @Inject()(connector: GithubConnector) {
     connector.getList[GithubRepo](urlOverride.getOrElse(s"https://api.github.com/users/$username/repos"))
   }
 
-  def getRepoItems(urlOverride: Option[String] = None, username: String, repoName: String)(implicit ec: ExecutionContext): EitherT[Future, APIError, Seq[RepoItem]] = {
-    connector.getList[RepoItem](urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents"))
+  def getRepoItems(urlOverride: Option[String] = None, username: String, repoName: String, path: String = "")(implicit ec: ExecutionContext): EitherT[Future, APIError, Seq[RepoItem]] = {
+    connector.getList[RepoItem](urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"))
+  }
+
+  def getFileInfo(urlOverride: Option[String] = None, username: String, repoName: String, path: String)(implicit ec: ExecutionContext): EitherT[Future, APIError, FileInfo] = {
+    connector.get[FileInfo](urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"))
   }
 }

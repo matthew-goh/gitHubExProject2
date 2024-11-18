@@ -3,7 +3,7 @@ package services
 import baseSpec.BaseSpec
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -109,6 +109,37 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.getRepoItems(urlOverride = Some(url), username = "??", repoName = "abc").value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+      }
+    }
+  }
+
+  "getFileInfo" should {
+    val url: String = "testUrl"
+
+    "return a user's details" in {
+      (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
+        .expects(url, *, *) // can take *, which shows that the connector can expect any request in place of the parameter. You might sometimes see this as any().
+        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo])) // explicitly states what the connector method returns
+        .once() // how many times we can expect this response
+
+      // allows for the result to be waited for as the Future type can be seen as a placeholder for a value we don't have yet
+      whenReady(testService.getFileInfo(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+        path = "src/main/scala/Hello.scala").value) { result =>
+        result shouldBe Right(GithubServiceSpec.testFileInfo)
+      }
+    }
+
+    "return an error" in {
+      val url: String = "testUrl"
+
+      (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
+        .expects(url, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))// How do we return an error?
+        .once()
+
+      whenReady(testService.getFileInfo(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+        path = "badpath").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
@@ -407,8 +438,8 @@ object GithubServiceSpec {
       |]
     """.stripMargin)
 
-  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", "file"), RepoItem("build.sbt", "file"),
-    RepoItem("project", "dir"), RepoItem("src", "dir"))
+  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", ".gitignore", "file"), RepoItem("build.sbt", "build.sbt", "file"),
+    RepoItem("project", "project", "dir"), RepoItem("src", "src", "dir"))
   val testRepoItemsJson: JsValue = Json.parse("""
       |[
       |  {
@@ -476,5 +507,28 @@ object GithubServiceSpec {
       |    }
       |  }
       |]
+      |""".stripMargin)
+
+  val testFileInfo: FileInfo = FileInfo("Hello.scala", "src/main/scala/Hello.scala",
+    "b2JqZWN0IEhlbGxvIGV4dGVuZHMgQXBwIHsKICBwcmludGxuKCJIZWxsbywg\nV29ybGQhIikKfQo=\n")
+  val testFileInfoJson: JsValue = Json.parse("""
+      |{
+      |  "name": "Hello.scala",
+      |  "path": "src/main/scala/Hello.scala",
+      |  "sha": "49583c41ef04c166308ca27bb7d02c61908113da",
+      |  "size": 56,
+      |  "url": "https://api.github.com/repos/matthew-goh/scala101/contents/src/main/scala/Hello.scala?ref=main",
+      |  "html_url": "https://github.com/matthew-goh/scala101/blob/main/src/main/scala/Hello.scala",
+      |  "git_url": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/49583c41ef04c166308ca27bb7d02c61908113da",
+      |  "download_url": "https://raw.githubusercontent.com/matthew-goh/scala101/main/src/main/scala/Hello.scala",
+      |  "type": "file",
+      |  "content": "b2JqZWN0IEhlbGxvIGV4dGVuZHMgQXBwIHsKICBwcmludGxuKCJIZWxsbywg\nV29ybGQhIikKfQo=\n",
+      |  "encoding": "base64",
+      |  "_links": {
+      |    "self": "https://api.github.com/repos/matthew-goh/scala101/contents/src/main/scala/Hello.scala?ref=main",
+      |    "git": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/49583c41ef04c166308ca27bb7d02c61908113da",
+      |    "html": "https://github.com/matthew-goh/scala101/blob/main/src/main/scala/Hello.scala"
+      |  }
+      |}
       |""".stripMargin)
 }
