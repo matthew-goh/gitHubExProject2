@@ -3,6 +3,7 @@
     <h1>Making GitHub with Scala Play</h1>
 
     <p><a href="@routes.HomeController.index"> Back to Home </a></p>
+    <p><a href="@routes.ApplicationController.getUserRepos(username)"> Back to user's repositories </a></p>
 
     <h2>Repository @repoName by @username</h2>
     @if(repoItemList.isEmpty) {
@@ -16,7 +17,7 @@
                     @if(item.itemType == "file") {
                         <img class="file-icon" src="@routes.Assets.versioned("images/file-icon.png")" alt="File Icon">
                     } else { <img class="file-icon" src="@routes.Assets.versioned("images/folder-icon.png")" alt="Folder Icon"> }
-                    @item.name
+                    <a href="@routes.ApplicationController.getFromPath(username, repoName, item.path)"> @item.name </a>
                 </p>
                 </div>
             </li>

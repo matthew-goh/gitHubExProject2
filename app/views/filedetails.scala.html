@@ -1,3 +1,4 @@
+@import java.nio.file.Paths
 @import java.util.Base64
 
 @import play.twirl.api.HtmlFormat.raw
@@ -7,6 +8,11 @@
     <h1>Making GitHub with Scala Play</h1>
 
     <p><a href="@routes.HomeController.index"> Back to Home </a></p>
+    @if(Paths.get(file.path).getParent != null) {
+        <p><a href="@routes.ApplicationController.getFromPath(username, repoName, Paths.get(file.path).getParent.toString)"> Back one level </a></p>
+    } else {
+        <p><a href="@routes.ApplicationController.getRepoItems(username, repoName)"> Back one level </a></p>
+    }
 
     <h2>Repository @repoName by @username</h2>
     <h3>Details of <i>@file.name</i></h3>
