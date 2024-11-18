@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -218,6 +218,50 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val searchResult: Future[Result] = TestApplicationController.getRepoItems(username = "matthew-goh", repoName = "abc")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
       contentAsString(searchResult) should include ("User or repository not found")
+    }
+  }
+
+  "ApplicationController .getFromPath()" should {
+    "list the folder's items if the path is a folder" in {
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
+      status(searchResult) shouldBe OK
+      contentAsString(searchResult) should include ("Contents of folder src")
+      contentAsString(searchResult) should include (".gitignore")
+      contentAsString(searchResult) should include ("project")
+    }
+
+    "display the file's contents if the path is a file" in {
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))
+        .once()
+
+      (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src/main/scala/Hello.scala")(FakeRequest())
+      status(searchResult) shouldBe OK
+      contentAsString(searchResult) should include ("Details of <i>Hello.scala</i>")
+      contentAsString(searchResult) should include ("<b>Path:</b> scala101/src/main/scala/Hello.scala")
+      contentAsString(searchResult) should include ("object Hello extends App {<br>  println(\"Hello, World!\")<br>}<br>")
+    }
+    
+    "return a NotFound if the path is invalid" in {
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "badpath")(FakeRequest())
+      status(searchResult) shouldBe NOT_FOUND
+      contentAsString(searchResult) should include ("Path not found")
     }
   }
 
