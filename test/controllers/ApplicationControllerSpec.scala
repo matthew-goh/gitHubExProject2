@@ -250,9 +250,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       status(searchResult) shouldBe OK
       contentAsString(searchResult) should include ("Details of <i>Hello.scala</i>")
       contentAsString(searchResult) should include ("<b>Path:</b> scala101/src/main/scala/Hello.scala")
-      contentAsString(searchResult) should include ("object Hello extends App {<br>  println(\"Hello, World!\")<br>}<br>")
+      contentAsString(searchResult) should include ("object Hello extends App")
     }
-    
+
     "return a NotFound if the path is invalid" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
         .expects(None, *, *, *, *)

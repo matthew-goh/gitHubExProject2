@@ -1,8 +1,15 @@
+@import java.nio.file.Paths
+
 @(repoItemList: Seq[RepoItem], username: String, repoName: String, path: String)
 @main("Folder Contents"){
     <h1>Making GitHub with Scala Play</h1>
 
     <p><a href="@routes.HomeController.index"> Back to Home </a></p>
+    @if(Paths.get(path).getParent != null) {
+        <p><a href="@routes.ApplicationController.getFromPath(username, repoName, Paths.get(path).getParent.toString)"> Back one level </a></p>
+    } else {
+        <p><a href="@routes.ApplicationController.getRepoItems(username, repoName)"> Back one level </a></p>
+    }
 
     <h2>Repository @repoName by @username</h2>
     <h3>Contents of folder @path</h3>
@@ -17,7 +24,7 @@
                         @if(item.itemType == "file") {
                             <img class="file-icon" src="@routes.Assets.versioned("images/file-icon.png")" alt="File Icon">
                         } else { <img class="file-icon" src="@routes.Assets.versioned("images/folder-icon.png")" alt="Folder Icon"> }
-                        @item.name
+                        <a href="@routes.ApplicationController.getFromPath(username, repoName, item.path)"> @item.name </a>
                     </p>
                 </div>
             </li>
