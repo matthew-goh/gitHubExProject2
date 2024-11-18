@@ -8,7 +8,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.libs.json._
-import services.GithubServiceSpec.{testAPIRepo1, testAPIRepo2, testRepoItemsList}
 
 import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
