@@ -8,6 +8,7 @@ import services.{GithubService, RepositoryService}
 
 import java.time.{Instant, ZoneId}
 import java.time.format.DateTimeFormatter
+import java.util.Base64
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -95,6 +96,33 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case Left(error) => { error.reason match {
         case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User or repository not found"))
         case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
+    }
+  }
+
+  def getFromPath(username: String, repoName: String, path: String): Action[AnyContent] = Action.async {implicit request =>
+    // first try getRepoItems to see if the path is a folder
+    // use flatMap and Future.successful() here so that the inner map returns the required Future[Result], not Future[Future[Result]]
+    service.getRepoItems(username = username, repoName = repoName, path = path).value.flatMap {
+      case Right(repoItemList) => Future.successful(Ok(views.html.foldercontents(repoItemList, username, repoName, path)))
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => Future.successful(NotFound(views.html.unsuccessful("Path not found")))
+        case _ => {
+          // if there is an error, the path should be a file
+          service.getFileInfo(username = username, repoName = repoName, path = path).value.map {
+            case Right(file) => {
+//              val encodedLines = file.content.split("\n")
+//              val decodedLines = encodedLines.map(line => new String(Base64.getDecoder.decode(line)))
+//              val decodedContent = decodedLines.mkString("\n")
+//              val decodedContent = new String(Base64.getDecoder.decode(file.content.replaceAll("\n", "")))
+              Ok(views.html.filedetails(file, username, repoName))
+            }
+            case Left(error) => { error.reason match {
+              case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+              case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+            }}
+          }
+        }
       }}
     }
   }

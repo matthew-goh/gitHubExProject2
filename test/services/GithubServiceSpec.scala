@@ -438,8 +438,8 @@ object GithubServiceSpec {
       |]
     """.stripMargin)
 
-  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", "file"), RepoItem("build.sbt", "file"),
-    RepoItem("project", "dir"), RepoItem("src", "dir"))
+  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", ".gitignore", "file"), RepoItem("build.sbt", "build.sbt", "file"),
+    RepoItem("project", "project", "dir"), RepoItem("src", "src", "dir"))
   val testRepoItemsJson: JsValue = Json.parse("""
       |[
       |  {
@@ -509,7 +509,8 @@ object GithubServiceSpec {
       |]
       |""".stripMargin)
 
-  val testFileInfo: FileInfo = FileInfo("Hello.scala", "b2JqZWN0IEhlbGxvIGV4dGVuZHMgQXBwIHsKICBwcmludGxuKCJIZWxsbywg\nV29ybGQhIikKfQo=\n")
+  val testFileInfo: FileInfo = FileInfo("Hello.scala", "src/main/scala/Hello.scala",
+    "b2JqZWN0IEhlbGxvIGV4dGVuZHMgQXBwIHsKICBwcmludGxuKCJIZWxsbywg\nV29ybGQhIikKfQo=\n")
   val testFileInfoJson: JsValue = Json.parse("""
       |{
       |  "name": "Hello.scala",
