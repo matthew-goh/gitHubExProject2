@@ -197,8 +197,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
   "ApplicationController .getRepoItems()" should {
     "list the repository items" in {
-      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *)
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *, *)
         .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
         .once()
 
@@ -210,8 +210,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a NotFound if the repository is not found" in {
-      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *)
+      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, *, *, *, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
