@@ -3,12 +3,12 @@ package services
 import baseSpec.BaseSpec
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, GithubRepo, User, UserModel}
+import models.{APIError, GithubRepo, RepoItem, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.libs.json._
-import services.GithubServiceSpec.{testAPIRepo1, testAPIRepo2}
+import services.GithubServiceSpec.{testAPIRepo1, testAPIRepo2, testRepoItemsList}
 
 import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
@@ -67,7 +67,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
       // allows for the result to be waited for as the Future type can be seen as a placeholder for a value we don't have yet
       whenReady(testService.getGithubRepos(urlOverride = Some(url), username = "matthew-goh").value) { result =>
-        result shouldBe Right(Seq(testAPIRepo1, testAPIRepo2))
+        result shouldBe Right(Seq(GithubServiceSpec.testAPIRepo1, GithubServiceSpec.testAPIRepo2))
       }
     }
 
@@ -80,6 +80,35 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.getGithubRepos(urlOverride = Some(url), username = "??").value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+      }
+    }
+  }
+
+  "getRepoItems" should {
+    val url: String = "testUrl"
+
+    "return a list of files and folders in a GitHub repository" in {
+      (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
+        .expects(url, *, *) // can take *, which shows that the connector can expect any request in place of the parameter. You might sometimes see this as any().
+        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]])) // explicitly states what the connector method returns
+        .once() // how many times we can expect this response
+
+      // allows for the result to be waited for as the Future type can be seen as a placeholder for a value we don't have yet
+      whenReady(testService.getRepoItems(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101").value) { result =>
+        result shouldBe Right(GithubServiceSpec.testRepoItemsList)
+      }
+    }
+
+    "return an error" in {
+      val url: String = "testUrl"
+
+      (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
+        .expects(url, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      whenReady(testService.getRepoItems(urlOverride = Some(url), username = "??", repoName = "abc").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
@@ -377,4 +406,75 @@ object GithubServiceSpec {
       |  }
       |]
     """.stripMargin)
+
+  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", "file"), RepoItem("build.sbt", "file"),
+    RepoItem("project", "dir"), RepoItem("src", "dir"))
+  val testRepoItemsJson: JsValue = Json.parse("""
+      |[
+      |  {
+      |    "name": ".gitignore",
+      |    "path": ".gitignore",
+      |    "sha": "ae66c9c4436c5dce22a6d1855552f6651ea11ef4",
+      |    "size": 158,
+      |    "url": "https://api.github.com/repos/matthew-goh/scala101/contents/.gitignore?ref=main",
+      |    "html_url": "https://github.com/matthew-goh/scala101/blob/main/.gitignore",
+      |    "git_url": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/ae66c9c4436c5dce22a6d1855552f6651ea11ef4",
+      |    "download_url": "https://raw.githubusercontent.com/matthew-goh/scala101/main/.gitignore",
+      |    "type": "file",
+      |    "_links": {
+      |      "self": "https://api.github.com/repos/matthew-goh/scala101/contents/.gitignore?ref=main",
+      |      "git": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/ae66c9c4436c5dce22a6d1855552f6651ea11ef4",
+      |      "html": "https://github.com/matthew-goh/scala101/blob/main/.gitignore"
+      |    }
+      |  },
+      |  {
+      |    "name": "build.sbt",
+      |    "path": "build.sbt",
+      |    "sha": "477a19d9089787571e77878c7fe0fc5b05541753",
+      |    "size": 387,
+      |    "url": "https://api.github.com/repos/matthew-goh/scala101/contents/build.sbt?ref=main",
+      |    "html_url": "https://github.com/matthew-goh/scala101/blob/main/build.sbt",
+      |    "git_url": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/477a19d9089787571e77878c7fe0fc5b05541753",
+      |    "download_url": "https://raw.githubusercontent.com/matthew-goh/scala101/main/build.sbt",
+      |    "type": "file",
+      |    "_links": {
+      |      "self": "https://api.github.com/repos/matthew-goh/scala101/contents/build.sbt?ref=main",
+      |      "git": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/477a19d9089787571e77878c7fe0fc5b05541753",
+      |      "html": "https://github.com/matthew-goh/scala101/blob/main/build.sbt"
+      |    }
+      |  },
+      |  {
+      |    "name": "project",
+      |    "path": "project",
+      |    "sha": "318820de6fa5c540fcdc7dcdb15e492ca36cd2fc",
+      |    "size": 0,
+      |    "url": "https://api.github.com/repos/matthew-goh/scala101/contents/project?ref=main",
+      |    "html_url": "https://github.com/matthew-goh/scala101/tree/main/project",
+      |    "git_url": "https://api.github.com/repos/matthew-goh/scala101/git/trees/318820de6fa5c540fcdc7dcdb15e492ca36cd2fc",
+      |    "download_url": null,
+      |    "type": "dir",
+      |    "_links": {
+      |      "self": "https://api.github.com/repos/matthew-goh/scala101/contents/project?ref=main",
+      |      "git": "https://api.github.com/repos/matthew-goh/scala101/git/trees/318820de6fa5c540fcdc7dcdb15e492ca36cd2fc",
+      |      "html": "https://github.com/matthew-goh/scala101/tree/main/project"
+      |    }
+      |  },
+      |  {
+      |    "name": "src",
+      |    "path": "src",
+      |    "sha": "a19a9c57da0f6bfdca670328671c1bff0c4cb67f",
+      |    "size": 0,
+      |    "url": "https://api.github.com/repos/matthew-goh/scala101/contents/src?ref=main",
+      |    "html_url": "https://github.com/matthew-goh/scala101/tree/main/src",
+      |    "git_url": "https://api.github.com/repos/matthew-goh/scala101/git/trees/a19a9c57da0f6bfdca670328671c1bff0c4cb67f",
+      |    "download_url": null,
+      |    "type": "dir",
+      |    "_links": {
+      |      "self": "https://api.github.com/repos/matthew-goh/scala101/contents/src?ref=main",
+      |      "git": "https://api.github.com/repos/matthew-goh/scala101/git/trees/a19a9c57da0f6bfdca670328671c1bff0c4cb67f",
+      |      "html": "https://github.com/matthew-goh/scala101/tree/main/src"
+      |    }
+      |  }
+      |]
+      |""".stripMargin)
 }
