@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, CreateRequestBody, FileInfo, GithubRepo, RepoItem, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -264,6 +264,56 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(searchResult) should include ("Path not found")
     }
   }
+
+
+  ///// METHODS TO MODIFY GITHUB /////
+  "ApplicationController .createFile()" should {
+    val body = CreateRequestBody("Test commit", "Test file content")
+
+    "create a file on GitHub" in {
+      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
+        .expects(None, *, *, *, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      val request: FakeRequest[JsValue] = testRequest.buildPut("/github/users/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
+      val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "test-repo", "testfile.txt")(request)
+      status(createFileResult) shouldBe Status.CREATED
+      contentAsJson(createFileResult) shouldBe GithubServiceSpec.testCreateResult
+    }
+
+    "return a NotFound if the username or repository does not exist" in {
+      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
+        .expects(None, *, *, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "User or repository not found")))
+        .once()
+
+      val request: FakeRequest[JsValue] = testRequest.buildPut("/github/users/matthew-goh/repos/abc/testfile.txt").withBody[JsValue](Json.toJson(body))
+      val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "abc", "testfile.txt")(request)
+      status(createFileResult) shouldBe Status.NOT_FOUND
+      contentAsString(createFileResult) shouldBe "User or repository not found"
+    }
+
+    "return a BadRequest if another API error occurred" in {
+      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
+        .expects(None, *, *, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
+        .once()
+
+      val request: FakeRequest[JsValue] = testRequest.buildPut("/github/users/matthew-goh/repos/test-repo/invalid//testfile.txt").withBody[JsValue](Json.toJson(body))
+      val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "test-repo", "invalid//testfile.txt")(request)
+      status(createFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(createFileResult) shouldBe "Bad response from upstream; got status: 422, and got reason: Invalid path"
+    }
+
+    "return a BadRequest if the request body could not be parsed into a CreatedRequestBody" in {
+      val request: FakeRequest[JsValue] = testRequest.buildPut("/github/users/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson("abcd"))
+      val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "test-repo", "testfile.txt")(request)
+      status(createFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(createFileResult) shouldBe "Invalid request body"
+    }
+  }
+
 
   ///// API METHODS WITHOUT FRONTEND /////
   "ApplicationController .index()" should {

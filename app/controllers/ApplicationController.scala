@@ -1,6 +1,6 @@
 package controllers
 
-import models.UserModel
+import models.{CreateRequestBody, UserModel}
 import play.api.libs.json._
 import play.api.mvc._
 import play.filters.csrf.CSRF
@@ -127,7 +127,22 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
-  ///// API METHODS WITHOUT FRONTEND /////
+  ///// METHODS TO MODIFY GITHUB /////
+  def createFile(username: String, repoName: String, path: String) = Action.async(parse.json) { implicit request =>
+    request.body.validate[CreateRequestBody] match {
+      case JsSuccess(requestBody, _) =>
+        service.createGithubFile(username = username, repoName = repoName, path = path, body = requestBody).value.map{
+          case Right(response) => Created {response}
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound {"User or repository not found"}
+            case _ => BadRequest {error.reason}
+          }}
+        }
+      case JsError(_) => Future(BadRequest {"Invalid request body"})
+    }
+  }
+
+  ///// REPOSITORY API METHODS WITHOUT FRONTEND /////
   def index(): Action[AnyContent] = Action.async { implicit request =>
     repoService.index().map{ // dataRepository.index() is a Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]
       case Right(item: Seq[UserModel]) => Ok {Json.toJson(item)}

@@ -11,6 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class GithubConnector @Inject()(ws: WSClient) {
   def get[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Response] = {
     val githubToken = sys.env.get("GITHUB_TOKEN")
+//    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
     val request = ws.url(url)
     val requestWithAuth = githubToken match {
@@ -39,6 +40,7 @@ class GithubConnector @Inject()(ws: WSClient) {
 
   def getList[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Seq[Response]] = {
     val githubToken = sys.env.get("GITHUB_TOKEN")
+//    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
     val request = ws.url(url)
     val requestWithAuth = githubToken match {
@@ -64,40 +66,41 @@ class GithubConnector @Inject()(ws: WSClient) {
         }
     }
   }
-}
 
-//{
-//  "login": "matthew-goh",
-//  "id": 186605436,
-//  "node_id": "U_kgDOCx9ffA",
-//  "avatar_url": "https://avatars.githubusercontent.com/u/186605436?v=4",
-//  "gravatar_id": "",
-//  "url": "https://api.github.com/users/matthew-goh",
-//  "html_url": "https://github.com/matthew-goh",
-//  "followers_url": "https://api.github.com/users/matthew-goh/followers",
-//  "following_url": "https://api.github.com/users/matthew-goh/following{/other_user}",
-//  "gists_url": "https://api.github.com/users/matthew-goh/gists{/gist_id}",
-//  "starred_url": "https://api.github.com/users/matthew-goh/starred{/owner}{/repo}",
-//  "subscriptions_url": "https://api.github.com/users/matthew-goh/subscriptions",
-//  "organizations_url": "https://api.github.com/users/matthew-goh/orgs",
-//  "repos_url": "https://api.github.com/users/matthew-goh/repos",
-//  "events_url": "https://api.github.com/users/matthew-goh/events{/privacy}",
-//  "received_events_url": "https://api.github.com/users/matthew-goh/received_events",
-//  "type": "User",
-//  "user_view_type": "public",
-//  "site_admin": false,
-//  "name": "Matthew Goh",
-//  "company": null,
-//  "blog": "",
-//  "location": null,
-//  "email": null,
-//  "hireable": null,
-//  "bio": null,
-//  "twitter_username": null,
-//  "public_repos": 5,
-//  "public_gists": 0,
-//  "followers": 0,
-//  "following": 0,
-//  "created_at": "2024-10-28T15:22:40Z",
-//  "updated_at": "2024-11-05T11:54:37Z"
-//}
+  def create(url: String, requestBody: JsObject)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+
+    val request = ws.url(url)
+    val requestWithAuth = personalToken match {
+      case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token", "Accept" -> "application/vnd.github.v3+json")
+      case None => request.addHttpHeaders("Accept" -> "application/vnd.github.v3+json")
+    }
+    val response = requestWithAuth.put(requestBody)
+
+    EitherT {
+      response.map {
+          result => {
+            val resultBody: JsValue = Json.parse(result.body)
+            val message: Option[String] = (resultBody \ "message").asOpt[String]
+//            println(s"${result.status} $resultBody \n $message")
+            result.status match {
+              case 201 => Right(resultBody)
+              case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
+              case 404 => Left(APIError.BadAPIResponse(404, "User or repository not found"))
+              case 422 => {
+                message match {
+                  case Some("path contains a malformed path component") => Left(APIError.BadAPIResponse(422, "Invalid path"))
+                  case Some(_) => Left(APIError.BadAPIResponse(422, "File already exists"))
+                  case None => Left(APIError.BadAPIResponse(422, "Could not create file"))
+                }
+              }
+              case _ => Left(APIError.BadAPIResponse(400, "Could not create file"))
+            }
+          }
+        }
+        .recover { //case _: WSResponse =>
+          case _ => Left(APIError.BadAPIResponse(500, "Could not connect"))
+        }
+    }
+  }
+}

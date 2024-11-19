@@ -7,6 +7,7 @@ import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
+import play.api.libs.json.Json
 
 import java.time.Instant
 
@@ -17,12 +18,12 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
   val Host = "localhost"
   val wireMockServer = new WireMockServer(WireMockConfiguration.wireMockConfig().port(Port))
 
-  override def beforeAll {
+  override def beforeAll: Unit = {
     wireMockServer.start()
     configureFor(Host, Port)
   }
 
-  override def afterAll {
+  override def afterAll: Unit = {
     wireMockServer.stop()
     ws.close()
   }
@@ -219,6 +220,113 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
 
       whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/repos/matthew-goh/scala101/contents/build.sbt").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
+      }
+    }
+  }
+
+  "GithubConnectorSpec .create()" should {
+    "return a Right(response)" in {
+      val responseBody = """{"content":{"name":"testfile.txt","path":"testfile.txt","sha":"4753fddcf141a3798b6aed0e81f56c7f14535ed7","size":18,
+"url":"https://api.github.com/repos/matthew-goh/test-repo/contents/testfile.txt?ref=main",
+"html_url":"https://github.com/matthew-goh/test-repo/blob/main/testfile.txt",
+"git_url":"https://api.github.com/repos/matthew-goh/test-repo/git/blobs/4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+"download_url":"https://raw.githubusercontent.com/matthew-goh/test-repo/main/testfile.txt",
+"type":"file","_links":{"self":"https://api.github.com/repos/matthew-goh/test-repo/contents/testfile.txt?ref=main",
+"git":"https://api.github.com/repos/matthew-goh/test-repo/git/blobs/4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+"html":"https://github.com/matthew-goh/test-repo/blob/main/testfile.txt"}},
+"commit":{"sha":"30fc1672e979da86d88f45e7ce46dbef3bd59d31","node_id":"C_kwDONRSKnNoAKDMwZmMxNjcyZTk3OWRhODZkODhmNDVlN2NlNDZkYmVmM2JkNTlkMzE","url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/30fc1672e979da86d88f45e7ce46dbef3bd59d31","html_url":"https://github.com/matthew-goh/test-repo/commit/30fc1672e979da86d88f45e7ce46dbef3bd59d31",
+"author":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T10:28:44Z"},"committer":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T10:28:44Z"},
+"tree":{"sha":"3eccd62615f2ad1ccb13b5d3cf77f67dd71ee9a9","url":"https://api.github.com/repos/matthew-goh/test-repo/git/trees/3eccd62615f2ad1ccb13b5d3cf77f67dd71ee9a9"},"message":"Test commit","parents":[],
+"verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
+"""
+
+      stubFor(put(urlEqualTo("/users/matthew-goh/repos/test-repo/testfile.txt"))
+        .withRequestBody(equalToJson("""
+            {
+              "message": "Another test commit",
+              "content": "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(201)
+          .withHeader("Content-Type", "application/json")
+          .withBody(responseBody)))
+
+      whenReady(TestGithubConnector.create("http://localhost:8080/users/matthew-goh/repos/test-repo/testfile.txt",
+        Json.obj(
+        "message" -> "Another test commit",
+        "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+      )).value) { result =>
+        result shouldBe Right(Json.parse(responseBody))
+      }
+    }
+
+    "return a Not found error" in {
+      stubFor(put(urlEqualTo("/users/abc/repos/test-repo/testfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Another test commit",
+              "content": "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(404)
+          .withHeader("Content-Type", "application/json")
+          .withBody("""{"message":"Not Found","documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"404"}""")))
+
+      whenReady(TestGithubConnector.create("http://localhost:8080/users/abc/repos/test-repo/testfile.txt",
+        Json.obj(
+          "message" -> "Another test commit",
+          "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "User or repository not found"))
+      }
+    }
+
+    "return an invalid path error" in {
+      stubFor(put(urlEqualTo("/users/matthew-goh/repos/test-repo/invalid//testfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Another test commit",
+              "content": "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(422)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """{"message":"path contains a malformed path component","errors":[{"resource":"Commit","field":"path","code":"invalid"}],
+              |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}""".stripMargin)))
+
+      whenReady(TestGithubConnector.create("http://localhost:8080/users/matthew-goh/repos/test-repo/invalid//testfile.txt",
+        Json.obj(
+          "message" -> "Another test commit",
+          "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
+      }
+    }
+
+    "return a file already exists error" in {
+      stubFor(put(urlEqualTo("/users/matthew-goh/repos/test-repo/testfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Another test commit",
+              "content": "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(422)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """{"message":"Invalid request.\n\n\"sha\" wasn't supplied.",
+              |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}""".stripMargin)))
+
+      whenReady(TestGithubConnector.create("http://localhost:8080/users/matthew-goh/repos/test-repo/testfile.txt",
+        Json.obj(
+          "message" -> "Another test commit",
+          "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(422, "File already exists"))
       }
     }
   }
