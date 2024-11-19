@@ -10,6 +10,7 @@ import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.libs.json._
 
 import java.time.Instant
+import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
 
 class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with GuiceOneAppPerSuite {
@@ -135,10 +136,14 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
   "createGithubFile" should {
     val url: String = "testUrl"
+    val requestBody = Json.obj(
+      "message" -> "Test commit",
+      "content" -> Base64.getEncoder.encodeToString("Test file content".getBytes("UTF-8"))
+    )
 
     "return a JsValue for a successful call" in {
       (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
-        .expects(url, *, *)
+        .expects(url, requestBody, *)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
@@ -150,7 +155,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
     "return an error" in {
       (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
-        .expects(url, *, *)
+        .expects(url, requestBody, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
         .once()
 
@@ -163,10 +168,15 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
   "updateGithubFile" should {
     val url: String = "testUrl"
+    val requestBody = Json.obj(
+      "message" -> "Test commit",
+      "content" -> Base64.getEncoder.encodeToString("Test file content".getBytes("UTF-8")),
+      "sha" -> "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"
+    )
 
     "return a JsValue for a successful call" in {
       (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
-        .expects(url, *, *)
+        .expects(url, requestBody, *)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
@@ -178,7 +188,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
     "return an error" in {
       (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
-        .expects(url, *, *)
+        .expects(url, requestBody, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
         .once()
 
@@ -191,10 +201,14 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
   "deleteGithubFile" should {
     val url: String = "testUrl"
+    val requestBody = Json.obj(
+      "message" -> "Test delete",
+      "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+    )
 
     "return a JsValue for a successful call" in {
       (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
-        .expects(url, *, *)
+        .expects(url, requestBody, *)
         .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
         .once()
 
@@ -206,7 +220,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
     "return an error" in {
       (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
-        .expects(url, *, *)
+        .expects(url, requestBody, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
