@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, CreateRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -359,6 +359,54 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val updateFileResult: Future[Result] = TestApplicationController.updateFile("matthew-goh", "test-repo", "testfile.txt")(request)
       status(updateFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(updateFileResult) shouldBe "Invalid request body"
+    }
+  }
+
+  "ApplicationController .deleteFile()" should {
+    val body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+
+    "delete a file on GitHub" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, *, *, *, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
+        .once()
+
+      val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "testfile.txt")(request)
+      status(deleteFileResult) shouldBe Status.OK
+      contentAsJson(deleteFileResult) shouldBe GithubServiceSpec.testDeleteResult
+    }
+
+    "return a NotFound if the username, repository or file does not exist" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, *, *, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/abc/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("abc", "test-repo", "testfile.txt")(request)
+      status(deleteFileResult) shouldBe Status.NOT_FOUND
+      contentAsString(deleteFileResult) shouldBe "Not found"
+    }
+
+    "return a BadRequest if another API error occurred" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, *, *, *, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
+        .once()
+
+      val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo//testfile.txt").withBody[JsValue](Json.toJson(body))
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "/testfile.txt")(request)
+      status(deleteFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(deleteFileResult) shouldBe "Bad response from upstream; got status: 422, and got reason: Invalid path"
+    }
+
+    "return a BadRequest if the request body could not be parsed into a DeleteRequestBody" in {
+      val createBody = CreateRequestBody("Test commit", "Test file content")
+      val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(createBody))
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "testfile.txt")(request)
+      status(deleteFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(deleteFileResult) shouldBe "Invalid request body"
     }
   }
 

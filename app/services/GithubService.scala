@@ -2,7 +2,7 @@ package services
 
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, CreateRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
 import play.api.libs.json._
 
 import java.util.Base64
@@ -51,5 +51,14 @@ class GithubService @Inject()(connector: GithubConnector) {
     )
     // println(requestBody)
     connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
+  }
+
+  def deleteGithubFile(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: DeleteRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+    val requestBody = Json.obj(
+      "message" -> body.commitMessage,
+      "sha" -> body.fileSHA
+    )
+     println(requestBody)
+    connector.delete(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
 }

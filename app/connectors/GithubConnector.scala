@@ -90,12 +90,50 @@ class GithubConnector @Inject()(ws: WSClient) {
               case 409 => Left(APIError.BadAPIResponse(409, "sha does not match"))
               case 422 => {
                 message match {
-                  case Some("path contains a malformed path component") => Left(APIError.BadAPIResponse(422, "Invalid path"))
+                  case Some("path contains a malformed path component") | Some("path cannot start with a slash") => Left(APIError.BadAPIResponse(422, "Invalid path"))
                   case Some("Invalid request.\n\n\"sha\" wasn't supplied.") => Left(APIError.BadAPIResponse(422, "File already exists"))
                   case _ => Left(APIError.BadAPIResponse(422, "Could not create or update file"))
                 }
               }
               case _ => Left(APIError.BadAPIResponse(400, "Could not create or update file"))
+            }
+          }
+        }
+        .recover { //case _: WSResponse =>
+          case _ => Left(APIError.BadAPIResponse(500, "Could not connect"))
+        }
+    }
+  }
+
+  def delete(url: String, requestBody: JsObject)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+
+    val request = ws.url(url)
+    val requestWithAuth = personalToken match {
+      case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token", "Accept" -> "application/vnd.github.v3+json")
+      case None => request.addHttpHeaders("Accept" -> "application/vnd.github.v3+json")
+    }
+    // delete() method doesn't support a body
+    val response = requestWithAuth.withBody(requestBody).execute("DELETE")
+
+    EitherT {
+      response.map {
+          result => {
+            val resultBody: JsValue = Json.parse(result.body)
+            val message: Option[String] = (resultBody \ "message").asOpt[String]
+            println(s"${result.status} $resultBody \n $message")
+            result.status match {
+              case 200 => Right(resultBody)
+              case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
+              case 404 => Left(APIError.BadAPIResponse(404, "Not found")) // including if file doesn't exist
+              case 409 => Left(APIError.BadAPIResponse(409, "sha does not match"))
+              case 422 => {
+                message match {
+                  case Some("path contains a malformed path component") | Some("path cannot start with a slash") => Left(APIError.BadAPIResponse(422, "Invalid path"))
+                  case _ => Left(APIError.BadAPIResponse(422, "Could not delete file"))
+                }
+              }
+              case _ => Left(APIError.BadAPIResponse(400, "Could not delete file"))
             }
           }
         }

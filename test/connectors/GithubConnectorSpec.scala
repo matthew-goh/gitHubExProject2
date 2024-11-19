@@ -29,7 +29,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     ws.close()
   }
 
-  "GithubConnectorSpec .get()" should {
+  "GithubConnector .get()" should {
     "return a Right(User)" in {
       stubFor(get(urlEqualTo("/github/users/matthew-goh"))
         .willReturn(aResponse()
@@ -102,7 +102,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     }
   }
 
-  "GithubConnectorSpec .getList()" should {
+  "GithubConnector .getList()" should {
     "return a Right(Seq[RepoItem])" in {
       stubFor(get(urlEqualTo("/github/repos/matthew-goh/scala101/contents"))
         .willReturn(aResponse()
@@ -224,7 +224,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     }
   }
 
-  "GithubConnectorSpec .create()" should {
+  "GithubConnector .create()" should {
     "return a Right(response)" in {
       val responseBody = """{"content":{"name":"testfile.txt","path":"testfile.txt","sha":"4753fddcf141a3798b6aed0e81f56c7f14535ed7","size":18,
 "url":"https://api.github.com/repos/matthew-goh/test-repo/contents/testfile.txt?ref=main",
@@ -295,7 +295,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withStatus(409)
           .withHeader("Content-Type", "application/json")
           .withBody(
-            """{"message":"testfile.txt does not match 4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+            """{"message":"testfile.txt does not match 3eed7ec08d20f5749d88b819d20e0be5775a7e3b",
               |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"409"}""".stripMargin)))
 
       whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/update/abc/repos/test-repo/testfile.txt",
@@ -353,6 +353,107 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
         )).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(422, "File already exists"))
+      }
+    }
+  }
+
+  "GithubConnector .delete()" should {
+    "return a Right(response)" in {
+      val responseBody = """{"content":null,"commit":{"sha":"1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f","node_id":"C_kwDONRSKnNoAKDFjNzBkZGFhNTY2OGI0MWJjZGI3OGYzNzZhY2Q0MWFlM2JjZGMzNmY",
+"url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f","html_url":"https://github.com/matthew-goh/test-repo/commit/1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f",
+"author":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T14:55:49Z"},"committer":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T14:55:49Z"},
+"tree":{"sha":"b60e7f292976b89040c114f9b584cb5c2625565c","url":"https://api.github.com/repos/matthew-goh/test-repo/git/trees/b60e7f292976b89040c114f9b584cb5c2625565c"},"message":"Test delete",
+"parents":[{"sha":"7c5098a91b8d82764fdb42c716bef22a63cf097b","url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/7c5098a91b8d82764fdb42c716bef22a63cf097b","html_url":"https://github.com/matthew-goh/test-repo/commit/7c5098a91b8d82764fdb42c716bef22a63cf097b"}],
+"verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
+"""
+
+      stubFor(delete(urlEqualTo("/github/delete/matthew-goh/repos/test-repo/testfile.txt"))
+        .withRequestBody(equalToJson("""
+            {
+              "message": "Test delete",
+              "sha": "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(200)
+          .withHeader("Content-Type", "application/json")
+          .withBody(responseBody)))
+
+      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo/testfile.txt",
+        Json.obj(
+          "message" -> "Test delete",
+          "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+        )).value) { result =>
+        result shouldBe Right(Json.parse(responseBody))
+      }
+    }
+
+    "return a Not found error" in {
+      stubFor(delete(urlEqualTo("/github/delete/matthew-goh/repos/test-repo/badfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Test delete",
+              "sha": "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(404)
+          .withHeader("Content-Type", "application/json")
+          .withBody("""{"message":"Not Found","documentation_url":"https://docs.github.com/rest/repos/contents#delete-a-file","status":"404"}""")))
+
+      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo/badfile.txt",
+        Json.obj(
+          "message" -> "Test delete",
+          "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+      }
+    }
+
+    "return an error if sha does not match" in {
+      stubFor(delete(urlEqualTo("/github/delete/matthew-goh/repos/test-repo/testfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Test delete",
+              "sha": "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(409)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """{"message":"testfile.txt does not match 4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+              |"documentation_url":"https://docs.github.com/rest/repos/contents#delete-a-file","status":"409"}""".stripMargin)))
+
+      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo/testfile.txt",
+        Json.obj(
+          "message" -> "Test delete",
+          "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(409, "sha does not match"))
+      }
+    }
+
+    "return an invalid path error" in {
+      stubFor(delete(urlEqualTo("/github/delete/matthew-goh/repos/test-repo//testfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Test delete",
+              "sha": "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(422)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """{"message":"path cannot start with a slash","errors":[{"resource":"Commit","field":"path","code":"invalid"}],
+              |"documentation_url":"https://docs.github.com/rest/repos/contents#delete-a-file","status":"422"}""".stripMargin)))
+
+      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo//testfile.txt",
+        Json.obj(
+          "message" -> "Test delete",
+          "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
       }
     }
   }

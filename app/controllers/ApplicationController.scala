@@ -1,6 +1,6 @@
 package controllers
 
-import models.{CreateRequestBody, UpdateRequestBody, UserModel}
+import models.{CreateRequestBody, DeleteRequestBody, UpdateRequestBody, UserModel}
 import play.api.libs.json._
 import play.api.mvc._
 import play.filters.csrf.CSRF
@@ -20,11 +20,11 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     CSRF.getToken
   }
 
-  def formatDateTime(instant: Instant): String = {
-    val zonedDateTime = instant.atZone(ZoneId.of("UTC"))
-    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
-    zonedDateTime.format(formatter)
-  }
+//  def formatDateTime(instant: Instant): String = {
+//    val zonedDateTime = instant.atZone(ZoneId.of("UTC"))
+//    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")
+//    zonedDateTime.format(formatter)
+//  }
 
   def listAllUsers(): Action[AnyContent] = Action.async {implicit request =>
     repoService.index().map{
@@ -54,14 +54,8 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
   def addUser(): Action[AnyContent] = Action.async {implicit request =>
     accessToken
-    val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
-    val location: String = request.body.asFormUrlEncoded.flatMap(_.get("location").flatMap(_.headOption)).getOrElse("")
-    val accountCreated: Instant = Instant.parse(request.body.asFormUrlEncoded.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
-    val numFollowers: Int = request.body.asFormUrlEncoded.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
-    val numFollowing: Int = request.body.asFormUrlEncoded.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
-
-    val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
-    repoService.create(user).map{
+//    println(request.body.asFormUrlEncoded) // type is Option[Map[String, Seq[String]]]
+    repoService.create(request.body.asFormUrlEncoded).map{
       case Right(_) => Ok(views.html.confirmation("Addition of user"))
       case Left(error) => {
         error.reason match {
@@ -150,6 +144,20 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
           case Right(response) => Ok {response}
           case Left(error) => { error.reason match {
             case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound {"User or repository not found"}
+            case _ => BadRequest {error.reason}
+          }}
+        }
+      case JsError(_) => Future(BadRequest {"Invalid request body"})
+    }
+  }
+
+  def deleteFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
+    request.body.validate[DeleteRequestBody] match {
+      case JsSuccess(requestBody, _) =>
+        service.deleteGithubFile(username = username, repoName = repoName, path = path, body = requestBody).value.map{
+          case Right(response) => Ok {response}
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound {"Not found"}
             case _ => BadRequest {error.reason}
           }}
         }

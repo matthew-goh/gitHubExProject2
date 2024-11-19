@@ -3,7 +3,7 @@ package services
 import baseSpec.BaseSpec
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, CreateRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -142,7 +142,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
-      whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+      whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
         path = "testfile.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
         result shouldBe Right(GithubServiceSpec.testCreateResult)
       }
@@ -154,7 +154,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
         .once()
 
-      whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+      whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
         path = "invalid//file.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
       }
@@ -170,7 +170,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
-      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
         path = "testfile.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
         result shouldBe Right(GithubServiceSpec.testCreateResult)
       }
@@ -182,9 +182,37 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
         .once()
 
-      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
         path = "invalid//file.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(409, "sha does not match"))
+      }
+    }
+  }
+
+  "deleteGithubFile" should {
+    val url: String = "testUrl"
+
+    "return a JsValue for a successful call" in {
+      (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
+        .once()
+
+      whenReady(testService.deleteGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testDeleteResult)
+      }
+    }
+
+    "return an error" in {
+      (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      whenReady(testService.deleteGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
   }
@@ -588,6 +616,14 @@ object GithubServiceSpec {
 "commit":{"sha":"30fc1672e979da86d88f45e7ce46dbef3bd59d31","node_id":"C_kwDONRSKnNoAKDMwZmMxNjcyZTk3OWRhODZkODhmNDVlN2NlNDZkYmVmM2JkNTlkMzE","url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/30fc1672e979da86d88f45e7ce46dbef3bd59d31","html_url":"https://github.com/matthew-goh/test-repo/commit/30fc1672e979da86d88f45e7ce46dbef3bd59d31",
 "author":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T10:28:44Z"},"committer":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T10:28:44Z"},
 "tree":{"sha":"3eccd62615f2ad1ccb13b5d3cf77f67dd71ee9a9","url":"https://api.github.com/repos/matthew-goh/test-repo/git/trees/3eccd62615f2ad1ccb13b5d3cf77f67dd71ee9a9"},"message":"Test commit","parents":[],
+"verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
+""")
+
+  val testDeleteResult: JsValue = Json.parse("""{"content":null,"commit":{"sha":"1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f","node_id":"C_kwDONRSKnNoAKDFjNzBkZGFhNTY2OGI0MWJjZGI3OGYzNzZhY2Q0MWFlM2JjZGMzNmY",
+"url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f","html_url":"https://github.com/matthew-goh/test-repo/commit/1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f",
+"author":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T14:55:49Z"},"committer":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T14:55:49Z"},
+"tree":{"sha":"b60e7f292976b89040c114f9b584cb5c2625565c","url":"https://api.github.com/repos/matthew-goh/test-repo/git/trees/b60e7f292976b89040c114f9b584cb5c2625565c"},"message":"Test delete",
+"parents":[{"sha":"7c5098a91b8d82764fdb42c716bef22a63cf097b","url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/7c5098a91b8d82764fdb42c716bef22a63cf097b","html_url":"https://github.com/matthew-goh/test-repo/commit/7c5098a91b8d82764fdb42c716bef22a63cf097b"}],
 "verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
 """)
 }
