@@ -3,13 +3,14 @@ package services
 import baseSpec.BaseSpec
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.libs.json._
 
 import java.time.Instant
+import java.util.Base64
 import scala.concurrent.{ExecutionContext, Future}
 
 class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with GuiceOneAppPerSuite {
@@ -33,8 +34,6 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     }
 
     "return an error" in {
-      val url: String = "testUrl"
-
       (mockConnector.get[User](_: String)(_: OFormat[User], _: ExecutionContext))
         .expects(url, *, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))// How do we return an error?
@@ -60,19 +59,16 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
     "return a list of GitHub repositories" in {
       (mockConnector.getList[GithubRepo](_: String)(_: OFormat[GithubRepo], _: ExecutionContext))
-        .expects(url, *, *) // can take *, which shows that the connector can expect any request in place of the parameter. You might sometimes see this as any().
-        .returning(EitherT.rightT(GithubServiceSpec.testAPIRepoResult.as[Seq[GithubRepo]])) // explicitly states what the connector method returns
-        .once() // how many times we can expect this response
+        .expects(url, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testAPIRepoResult.as[Seq[GithubRepo]]))
+        .once()
 
-      // allows for the result to be waited for as the Future type can be seen as a placeholder for a value we don't have yet
       whenReady(testService.getGithubRepos(urlOverride = Some(url), username = "matthew-goh").value) { result =>
         result shouldBe Right(Seq(GithubServiceSpec.testAPIRepo1, GithubServiceSpec.testAPIRepo2))
       }
     }
 
     "return an error" in {
-      val url: String = "testUrl"
-
       (mockConnector.getList[GithubRepo](_: String)(_: OFormat[GithubRepo], _: ExecutionContext))
         .expects(url, *, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
@@ -89,19 +85,16 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
     "return a list of files and folders in a GitHub repository" in {
       (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
-        .expects(url, *, *) // can take *, which shows that the connector can expect any request in place of the parameter. You might sometimes see this as any().
-        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]])) // explicitly states what the connector method returns
-        .once() // how many times we can expect this response
+        .expects(url, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
+        .once()
 
-      // allows for the result to be waited for as the Future type can be seen as a placeholder for a value we don't have yet
       whenReady(testService.getRepoItems(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101").value) { result =>
         result shouldBe Right(GithubServiceSpec.testRepoItemsList)
       }
     }
 
     "return an error" in {
-      val url: String = "testUrl"
-
       (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
         .expects(url, *, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
@@ -118,11 +111,10 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
 
     "return a user's details" in {
       (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
-        .expects(url, *, *) // can take *, which shows that the connector can expect any request in place of the parameter. You might sometimes see this as any().
-        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo])) // explicitly states what the connector method returns
-        .once() // how many times we can expect this response
+        .expects(url, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
+        .once()
 
-      // allows for the result to be waited for as the Future type can be seen as a placeholder for a value we don't have yet
       whenReady(testService.getFileInfo(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
         path = "src/main/scala/Hello.scala").value) { result =>
         result shouldBe Right(GithubServiceSpec.testFileInfo)
@@ -130,15 +122,110 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     }
 
     "return an error" in {
-      val url: String = "testUrl"
-
       (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
         .expects(url, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))// How do we return an error?
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
       whenReady(testService.getFileInfo(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
         path = "badpath").value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+      }
+    }
+  }
+
+  "createGithubFile" should {
+    val url: String = "testUrl"
+    val requestBody = Json.obj(
+      "message" -> "Test commit",
+      "content" -> Base64.getEncoder.encodeToString("Test file content".getBytes("UTF-8"))
+    )
+
+    "return a JsValue for a successful call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, requestBody, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testCreateResult)
+      }
+    }
+
+    "return an error" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, requestBody, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
+        .once()
+
+      whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
+      }
+    }
+  }
+
+  "updateGithubFile" should {
+    val url: String = "testUrl"
+    val requestBody = Json.obj(
+      "message" -> "Test commit",
+      "content" -> Base64.getEncoder.encodeToString("Test file content".getBytes("UTF-8")),
+      "sha" -> "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"
+    )
+
+    "return a JsValue for a successful call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, requestBody, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testCreateResult)
+      }
+    }
+
+    "return an error" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, requestBody, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
+        .once()
+
+      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(409, "sha does not match"))
+      }
+    }
+  }
+
+  "deleteGithubFile" should {
+    val url: String = "testUrl"
+    val requestBody = Json.obj(
+      "message" -> "Test delete",
+      "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+    )
+
+    "return a JsValue for a successful call" in {
+      (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, requestBody, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
+        .once()
+
+      whenReady(testService.deleteGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testDeleteResult)
+      }
+    }
+
+    "return an error" in {
+      (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, requestBody, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      whenReady(testService.deleteGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
@@ -437,8 +524,9 @@ object GithubServiceSpec {
       |]
     """.stripMargin)
 
-  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", ".gitignore", "file"), RepoItem("build.sbt", "build.sbt", "file"),
-    RepoItem("project", "project", "dir"), RepoItem("src", "src", "dir"))
+  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", ".gitignore", "ae66c9c4436c5dce22a6d1855552f6651ea11ef4", "file"),
+    RepoItem("build.sbt", "build.sbt", "477a19d9089787571e77878c7fe0fc5b05541753", "file"),
+    RepoItem("project", "project", "318820de6fa5c540fcdc7dcdb15e492ca36cd2fc", "dir"), RepoItem("src", "src", "a19a9c57da0f6bfdca670328671c1bff0c4cb67f", "dir"))
   val testRepoItemsJson: JsValue = Json.parse("""
       |[
       |  {
@@ -508,7 +596,7 @@ object GithubServiceSpec {
       |]
       |""".stripMargin)
 
-  val testFileInfo: FileInfo = FileInfo("Hello.scala", "src/main/scala/Hello.scala",
+  val testFileInfo: FileInfo = FileInfo("Hello.scala", "src/main/scala/Hello.scala", "49583c41ef04c166308ca27bb7d02c61908113da",
     "b2JqZWN0IEhlbGxvIGV4dGVuZHMgQXBwIHsKICBwcmludGxuKCJIZWxsbywg\nV29ybGQhIikKfQo=\n")
   val testFileInfoJson: JsValue = Json.parse("""
       |{
@@ -530,4 +618,26 @@ object GithubServiceSpec {
       |  }
       |}
       |""".stripMargin)
+
+  val testCreateResult: JsValue = Json.parse("""{"content":{"name":"testfile.txt","path":"testfile.txt","sha":"4753fddcf141a3798b6aed0e81f56c7f14535ed7","size":18,
+"url":"https://api.github.com/repos/matthew-goh/test-repo/contents/testfile.txt?ref=main",
+"html_url":"https://github.com/matthew-goh/test-repo/blob/main/testfile.txt",
+"git_url":"https://api.github.com/repos/matthew-goh/test-repo/git/blobs/4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+"download_url":"https://raw.githubusercontent.com/matthew-goh/test-repo/main/testfile.txt",
+"type":"file","_links":{"self":"https://api.github.com/repos/matthew-goh/test-repo/contents/testfile.txt?ref=main",
+"git":"https://api.github.com/repos/matthew-goh/test-repo/git/blobs/4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+"html":"https://github.com/matthew-goh/test-repo/blob/main/testfile.txt"}},
+"commit":{"sha":"30fc1672e979da86d88f45e7ce46dbef3bd59d31","node_id":"C_kwDONRSKnNoAKDMwZmMxNjcyZTk3OWRhODZkODhmNDVlN2NlNDZkYmVmM2JkNTlkMzE","url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/30fc1672e979da86d88f45e7ce46dbef3bd59d31","html_url":"https://github.com/matthew-goh/test-repo/commit/30fc1672e979da86d88f45e7ce46dbef3bd59d31",
+"author":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T10:28:44Z"},"committer":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T10:28:44Z"},
+"tree":{"sha":"3eccd62615f2ad1ccb13b5d3cf77f67dd71ee9a9","url":"https://api.github.com/repos/matthew-goh/test-repo/git/trees/3eccd62615f2ad1ccb13b5d3cf77f67dd71ee9a9"},"message":"Test commit","parents":[],
+"verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
+""")
+
+  val testDeleteResult: JsValue = Json.parse("""{"content":null,"commit":{"sha":"1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f","node_id":"C_kwDONRSKnNoAKDFjNzBkZGFhNTY2OGI0MWJjZGI3OGYzNzZhY2Q0MWFlM2JjZGMzNmY",
+"url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f","html_url":"https://github.com/matthew-goh/test-repo/commit/1c70ddaa5668b41bcdb78f376acd41ae3bcdc36f",
+"author":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T14:55:49Z"},"committer":{"name":"Matthew Goh","email":"matthew.goh@mercator.group","date":"2024-11-19T14:55:49Z"},
+"tree":{"sha":"b60e7f292976b89040c114f9b584cb5c2625565c","url":"https://api.github.com/repos/matthew-goh/test-repo/git/trees/b60e7f292976b89040c114f9b584cb5c2625565c"},"message":"Test delete",
+"parents":[{"sha":"7c5098a91b8d82764fdb42c716bef22a63cf097b","url":"https://api.github.com/repos/matthew-goh/test-repo/git/commits/7c5098a91b8d82764fdb42c716bef22a63cf097b","html_url":"https://github.com/matthew-goh/test-repo/commit/7c5098a91b8d82764fdb42c716bef22a63cf097b"}],
+"verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
+""")
 }
