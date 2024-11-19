@@ -8,6 +8,7 @@ import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.libs.json.Json
+import services.GithubServiceSpec
 
 import java.time.Instant
 
@@ -30,7 +31,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
 
   "GithubConnectorSpec .get()" should {
     "return a Right(User)" in {
-      stubFor(get(urlEqualTo("/users/matthew-goh"))
+      stubFor(get(urlEqualTo("/github/users/matthew-goh"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
@@ -62,13 +63,13 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |}
           """.stripMargin)))
 
-      whenReady(TestGithubConnector.get[User]("http://localhost:8080/users/matthew-goh").value) { result =>
+      whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/matthew-goh").value) { result =>
         result shouldBe Right(User("matthew-goh", None, Instant.parse("2024-10-28T15:22:40Z"), 0, 0))
       }
     }
 
     "return a Not found error" in {
-      stubFor(get(urlEqualTo("/users/abc"))
+      stubFor(get(urlEqualTo("/github/users/abc"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
@@ -78,14 +79,14 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |  "status": "404"
             |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.get[User]("http://localhost:8080/users/abc").value) { result =>
+      whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/abc").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
   }
 
   "return a Could not connect error if the response cannot be mapped to a User" in {
-    stubFor(get(urlEqualTo("/users/abc"))
+    stubFor(get(urlEqualTo("/github/users/abc"))
       .willReturn(aResponse()
         .withStatus(200)
         .withHeader("Content-Type", "application/json")
@@ -96,14 +97,14 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           |  "following": 0
           |}""".stripMargin)))
 
-    whenReady(TestGithubConnector.get[User]("http://localhost:8080/users/abc").value) { result =>
+    whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/abc").value) { result =>
       result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
     }
   }
 
   "GithubConnectorSpec .getList()" should {
     "return a Right(Seq[RepoItem])" in {
-      stubFor(get(urlEqualTo("/repos/matthew-goh/scala101/contents"))
+      stubFor(get(urlEqualTo("/github/repos/matthew-goh/scala101/contents"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
@@ -175,14 +176,13 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |]
           """.stripMargin)))
 
-      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/repos/matthew-goh/scala101/contents").value) { result =>
-        result shouldBe Right(Seq(RepoItem(".gitignore", ".gitignore", "file"), RepoItem("build.sbt", "build.sbt", "file"),
-          RepoItem("project", "project", "dir"), RepoItem("src", "src", "dir")))
+      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/github/repos/matthew-goh/scala101/contents").value) { result =>
+        result shouldBe Right(GithubServiceSpec.testRepoItemsList)
       }
     }
 
     "return a Not found error" in {
-      stubFor(get(urlEqualTo("/repos/matthew-goh/abc/contents"))
+      stubFor(get(urlEqualTo("/github/repos/matthew-goh/abc/contents"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
@@ -192,13 +192,13 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
                       |  "status": "404"
                       |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/repos/matthew-goh/abc/contents").value) { result =>
+      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/github/repos/matthew-goh/abc/contents").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
 
     "return a Could not connect error if the response cannot be mapped to a Seq[RepoItem]" in {
-      stubFor(get(urlEqualTo("/repos/matthew-goh/scala101/contents/build.sbt"))
+      stubFor(get(urlEqualTo("/github/repos/matthew-goh/scala101/contents/build.sbt"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
@@ -218,7 +218,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
                       |  }
                       |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/repos/matthew-goh/scala101/contents/build.sbt").value) { result =>
+      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/github/repos/matthew-goh/scala101/contents/build.sbt").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
       }
     }
@@ -240,7 +240,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
 "verification":{"verified":false,"reason":"unsigned","signature":null,"payload":null,"verified_at":null}}}
 """
 
-      stubFor(put(urlEqualTo("/users/matthew-goh/repos/test-repo/testfile.txt"))
+      stubFor(put(urlEqualTo("/github/create/matthew-goh/repos/test-repo/testfile.txt"))
         .withRequestBody(equalToJson("""
             {
               "message": "Another test commit",
@@ -251,7 +251,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withHeader("Content-Type", "application/json")
           .withBody(responseBody)))
 
-      whenReady(TestGithubConnector.create("http://localhost:8080/users/matthew-goh/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/matthew-goh/repos/test-repo/testfile.txt",
         Json.obj(
         "message" -> "Another test commit",
         "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -261,7 +261,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     }
 
     "return a Not found error" in {
-      stubFor(put(urlEqualTo("/users/abc/repos/test-repo/testfile.txt"))
+      stubFor(put(urlEqualTo("/github/create/abc/repos/test-repo/testfile.txt"))
         .withRequestBody(equalToJson(
           """
             {
@@ -273,7 +273,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withHeader("Content-Type", "application/json")
           .withBody("""{"message":"Not Found","documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"404"}""")))
 
-      whenReady(TestGithubConnector.create("http://localhost:8080/users/abc/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/abc/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -282,8 +282,34 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
+    "return an error if sha does not match" in {
+      stubFor(put(urlEqualTo("/github/update/abc/repos/test-repo/testfile.txt"))
+        .withRequestBody(equalToJson(
+          """
+            {
+              "message": "Test update",
+              "content": "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU=",
+              "sha": "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"
+            }""".stripMargin))
+        .willReturn(aResponse()
+          .withStatus(409)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """{"message":"testfile.txt does not match 4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+              |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"409"}""".stripMargin)))
+
+      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/update/abc/repos/test-repo/testfile.txt",
+        Json.obj(
+          "message" -> "Test update",
+          "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU=",
+          "sha" -> "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"
+        )).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(409, "sha does not match"))
+      }
+    }
+
     "return an invalid path error" in {
-      stubFor(put(urlEqualTo("/users/matthew-goh/repos/test-repo/invalid//testfile.txt"))
+      stubFor(put(urlEqualTo("/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt"))
         .withRequestBody(equalToJson(
           """
             {
@@ -297,7 +323,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"path contains a malformed path component","errors":[{"resource":"Commit","field":"path","code":"invalid"}],
               |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.create("http://localhost:8080/users/matthew-goh/repos/test-repo/invalid//testfile.txt",
+      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt",
         Json.obj(
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -307,7 +333,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     }
 
     "return a file already exists error" in {
-      stubFor(put(urlEqualTo("/users/matthew-goh/repos/test-repo/testfile.txt"))
+      stubFor(put(urlEqualTo("/github/create/matthew-goh/repos/test-repo/testfile.txt"))
         .withRequestBody(equalToJson(
           """
             {
@@ -321,7 +347,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"Invalid request.\n\n\"sha\" wasn't supplied.",
               |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.create("http://localhost:8080/users/matthew-goh/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/matthew-goh/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="

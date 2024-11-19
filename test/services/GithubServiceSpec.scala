@@ -3,7 +3,7 @@ package services
 import baseSpec.BaseSpec
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, CreateRequestBody, FileInfo, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, CreateRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -137,7 +137,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     val url: String = "testUrl"
 
     "return a JsValue for a successful call" in {
-      (mockConnector.create(_: String, _: JsObject)(_: ExecutionContext))
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
         .expects(url, *, *)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
@@ -149,7 +149,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     }
 
     "return an error" in {
-      (mockConnector.create(_: String, _: JsObject)(_: ExecutionContext))
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
         .expects(url, *, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
         .once()
@@ -157,6 +157,34 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
       whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
         path = "invalid//file.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
+      }
+    }
+  }
+
+  "updateGithubFile" should {
+    val url: String = "testUrl"
+
+    "return a JsValue for a successful call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+        path = "testfile.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testCreateResult)
+      }
+    }
+
+    "return an error" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
+        .once()
+
+      whenReady(testService.updateGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
+        path = "invalid//file.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(409, "sha does not match"))
       }
     }
   }
@@ -454,8 +482,9 @@ object GithubServiceSpec {
       |]
     """.stripMargin)
 
-  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", ".gitignore", "file"), RepoItem("build.sbt", "build.sbt", "file"),
-    RepoItem("project", "project", "dir"), RepoItem("src", "src", "dir"))
+  val testRepoItemsList: Seq[RepoItem] = Seq(RepoItem(".gitignore", ".gitignore", "ae66c9c4436c5dce22a6d1855552f6651ea11ef4", "file"),
+    RepoItem("build.sbt", "build.sbt", "477a19d9089787571e77878c7fe0fc5b05541753", "file"),
+    RepoItem("project", "project", "318820de6fa5c540fcdc7dcdb15e492ca36cd2fc", "dir"), RepoItem("src", "src", "a19a9c57da0f6bfdca670328671c1bff0c4cb67f", "dir"))
   val testRepoItemsJson: JsValue = Json.parse("""
       |[
       |  {
@@ -525,7 +554,7 @@ object GithubServiceSpec {
       |]
       |""".stripMargin)
 
-  val testFileInfo: FileInfo = FileInfo("Hello.scala", "src/main/scala/Hello.scala",
+  val testFileInfo: FileInfo = FileInfo("Hello.scala", "src/main/scala/Hello.scala", "49583c41ef04c166308ca27bb7d02c61908113da",
     "b2JqZWN0IEhlbGxvIGV4dGVuZHMgQXBwIHsKICBwcmludGxuKCJIZWxsbywg\nV29ybGQhIikKfQo=\n")
   val testFileInfoJson: JsValue = Json.parse("""
       |{

@@ -67,7 +67,7 @@ class GithubConnector @Inject()(ws: WSClient) {
     }
   }
 
-  def create(url: String, requestBody: JsObject)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+  def createUpdate(url: String, requestBody: JsObject)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
     val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
     val request = ws.url(url)
@@ -82,19 +82,20 @@ class GithubConnector @Inject()(ws: WSClient) {
           result => {
             val resultBody: JsValue = Json.parse(result.body)
             val message: Option[String] = (resultBody \ "message").asOpt[String]
-//            println(s"${result.status} $resultBody \n $message")
+            println(s"${result.status} $resultBody \n $message")
             result.status match {
-              case 201 => Right(resultBody)
+              case 200 | 201 => Right(resultBody)
               case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
               case 404 => Left(APIError.BadAPIResponse(404, "User or repository not found"))
+              case 409 => Left(APIError.BadAPIResponse(409, "sha does not match"))
               case 422 => {
                 message match {
                   case Some("path contains a malformed path component") => Left(APIError.BadAPIResponse(422, "Invalid path"))
-                  case Some(_) => Left(APIError.BadAPIResponse(422, "File already exists"))
-                  case None => Left(APIError.BadAPIResponse(422, "Could not create file"))
+                  case Some("Invalid request.\n\n\"sha\" wasn't supplied.") => Left(APIError.BadAPIResponse(422, "File already exists"))
+                  case _ => Left(APIError.BadAPIResponse(422, "Could not create or update file"))
                 }
               }
-              case _ => Left(APIError.BadAPIResponse(400, "Could not create file"))
+              case _ => Left(APIError.BadAPIResponse(400, "Could not create or update file"))
             }
           }
         }
