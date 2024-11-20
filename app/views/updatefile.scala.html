@@ -1,9 +1,6 @@
 @import models.UpdateRequestBody
 @import helper._
 
-@import java.util.Base64
-@import play.twirl.api.HtmlFormat.raw
-
 @*RequestHeader needed for form with CRSF, messages needed for specific form defined for a model*@
 @(username: String, repoName: String, filePath: String, updateForm: Form[UpdateRequestBody])(implicit request: RequestHeader, messages: Messages)
 
@@ -13,13 +10,12 @@
         <p><b>File:</b> @filePath</p>
         @helper.form(action = routes.ApplicationController.updateFormSubmit(username, repoName, filePath)) {
             @helper.CSRF.formField
-            @helper.inputText(updateForm("fileSHA"), Symbol("_label") -> "File SHA (read-only)", Symbol("size") -> "30", Symbol("readonly") -> "readonly")
+            @helper.inputText(updateForm("fileSHA"), Symbol("_label") -> "File SHA (read-only)", Symbol("size") -> "45", Symbol("readonly") -> "readonly")
             @helper.inputText(updateForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
             @helper.textarea(updateForm("newFileContent"), Symbol("_label") -> "File content", Symbol("rows") -> "10", Symbol("cols") -> "75")
             <input class="submitButton" type="submit" value="Submit">
         }
         <br>
-
         <p><a href="@routes.ApplicationController.getFromPath(username, repoName, filePath)"> Back to File Contents </a></p>
         <p><a href="@routes.HomeController.index()"> Back to Home </a></p>
     </div>

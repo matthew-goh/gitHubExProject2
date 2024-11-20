@@ -22,6 +22,8 @@ GET     /github/create/form      controllers.ApplicationController.createForm(us
 POST     /github/create/form      controllers.ApplicationController.createFormSubmit(username: String, repoName: String, path: String)
 GET     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.updateForm(username: String, repoName: String, path: String)
 POST     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.updateFormSubmit(username: String, repoName: String, path: String)
+GET     /github/delete/form/:username/:repoName/*path      controllers.ApplicationController.deleteForm(username: String, repoName: String, path: String)
+POST     /github/delete/form/:username/:repoName/*path      controllers.ApplicationController.deleteFormSubmit(username: String, repoName: String, path: String)
 # using curl requests
 PUT     /github/create/:username/repos/:repoName/*path     controllers.ApplicationController.createFile(username: String, repoName: String, path: String)
 PUT     /github/update/:username/repos/:repoName/*path     controllers.ApplicationController.updateFile(username: String, repoName: String, path: String)

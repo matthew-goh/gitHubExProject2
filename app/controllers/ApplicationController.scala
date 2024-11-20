@@ -56,7 +56,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     accessToken
 //    println(request.body.asFormUrlEncoded) // type is Option[Map[String, Seq[String]]]
     repoService.create(request.body.asFormUrlEncoded).map{
-      case Right(_) => Ok(views.html.confirmation("Addition of user"))
+      case Right(_) => Ok(views.html.confirmation("User added"))
       case Left(error) => {
         error.reason match {
           case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
@@ -69,7 +69,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
   def deleteUser(username: String): Action[AnyContent] = Action.async { implicit request =>
     repoService.delete(username).map{
-      case Right(_) => Ok(views.html.confirmation("Delete"))
+      case Right(_) => Ok(views.html.confirmation("User removed"))
       case Left(error) => BadRequest(views.html.unsuccessful("User not found in database"))
     }
   }
@@ -230,6 +230,37 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         }
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }
+  }
+
+  // delete - using form
+  def deleteForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
+    service.getFileInfo(username = username, repoName = repoName, path = filePath).value.map {
+      case Right(file) => {
+        val formWithDetails = DeleteRequestBody.deleteForm.fill(DeleteRequestBody(commitMessage = "", fileSHA = file.sha))
+        Ok(views.html.deletefile(username, repoName, filePath, formWithDetails))
+      }
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
+    }
+  }
+  def deleteFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
+    accessToken //call the accessToken method
+    DeleteRequestBody.deleteForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
+      formWithErrors => {
+        Future.successful(BadRequest(views.html.deletefile(username, repoName, filePath, formWithErrors)))
+      },
+      formData => {  // formData is a DeleteRequestBody
+        service.deleteGithubFile(username = username, repoName = repoName, path = filePath, body = formData).value.map{
+          case Right(response) => Ok(views.html.confirmation("File deleted"))
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+            case _ => BadRequest(views.html.unsuccessful(error.reason))
+          }}
+        }
+      }
+    )
   }
 
 

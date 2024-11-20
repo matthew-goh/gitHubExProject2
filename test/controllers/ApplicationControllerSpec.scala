@@ -126,7 +126,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       ) // .withCRSFToken not needed?
       val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
       status(addUserResult) shouldBe Status.OK
-      contentAsString(addUserResult) should include ("Addition of user successful!")
+      contentAsString(addUserResult) should include ("User added successfully!")
       afterEach()
     }
 
@@ -157,7 +157,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
       status(deleteResult) shouldBe Status.OK
-      contentAsString(deleteResult) should include ("Delete successful!")
+      contentAsString(deleteResult) should include ("User removed successfully!")
     }
 
     "return a BadRequest if the user could not be found" in {
@@ -512,6 +512,50 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(deleteFileResult) shouldBe "Invalid request body"
+    }
+  }
+
+  "ApplicationController .deleteFormSubmit()" should {
+    val body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+
+    "delete a file on GitHub" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
+        .once()
+
+      val deleteFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/delete/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test delete"
+      )
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
+      status(deleteFileResult) shouldBe Status.OK
+      contentAsString(deleteFileResult) should include ("File deleted successfully!")
+    }
+
+    "detect a form with errors" in {
+      val deleteFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/delete/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> ""
+      )
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
+      status(deleteFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(deleteFileResult) should include ("4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+    }
+
+    "return a NotFound if the file is not found" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "abc.txt", body, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      val deleteFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/delete/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test delete"
+      )
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "abc.txt")(deleteFileRequest)
+      status(deleteFileResult) shouldBe Status.NOT_FOUND
+      contentAsString(deleteFileResult) should include ("Path not found")
     }
   }
 

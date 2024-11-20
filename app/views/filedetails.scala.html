@@ -20,9 +20,9 @@
     <form action="@routes.ApplicationController.updateForm(username, repoName, file.path)" method="GET" class="button-form">
         <button type="submit">Update</button>
     </form>
-@*    <form action="@routes.ApplicationController.deleteForm(bookData._id)" method="GET" class="button-form">*@
-@*        <button type="submit">Delete</button>*@
-@*    </form>*@
+    <form action="@routes.ApplicationController.deleteForm(username, repoName, file.path)" method="GET" class="button-form">
+        <button type="submit">Delete</button>
+    </form>
     <p><b>Contents:</b> <br>
         @* new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))) is the decoded string (newlines are somehow preserved) *@
         @* @raw(decodedString.replace("\n", "<br>")) is to change all newlines to <br> so that it displays on a new line on the page *@

@@ -58,7 +58,7 @@ class GithubService @Inject()(connector: GithubConnector) {
       "message" -> body.commitMessage,
       "sha" -> body.fileSHA
     )
-     println(requestBody)
+//     println(requestBody)
     connector.delete(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
 
