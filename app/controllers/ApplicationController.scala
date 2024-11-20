@@ -56,7 +56,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     accessToken
 //    println(request.body.asFormUrlEncoded) // type is Option[Map[String, Seq[String]]]
     repoService.create(request.body.asFormUrlEncoded).map{
-      case Right(_) => Ok(views.html.confirmation("Addition of user"))
+      case Right(_) => Ok(views.html.confirmation("User added"))
       case Left(error) => {
         error.reason match {
           case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
@@ -69,7 +69,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
   def deleteUser(username: String): Action[AnyContent] = Action.async { implicit request =>
     repoService.delete(username).map{
-      case Right(_) => Ok(views.html.confirmation("Delete"))
+      case Right(_) => Ok(views.html.confirmation("User removed"))
       case Left(error) => BadRequest(views.html.unsuccessful("User not found in database"))
     }
   }
@@ -123,6 +123,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
 
   ///// METHODS TO MODIFY GITHUB /////
+  // create - using curl request
   def createFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[CreateRequestBody] match {
       case JsSuccess(requestBody, _) =>
@@ -137,6 +138,39 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  // create - using form
+  def createForm(username: String, repoName: String, folderPath: String): Action[AnyContent] = Action.async { implicit request =>
+    Future.successful(Ok(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm)))
+  }
+  def createFormSubmit(username: String, repoName: String, folderPath: String): Action[AnyContent] =  Action.async {implicit request =>
+    accessToken //call the accessToken method
+    CreateRequestBody.createForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
+      formWithErrors => {
+        Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, formWithErrors, extraMessage = "Please fill in all required fields")))
+      },
+      formData => {  // formData is a CreateRequestBody
+        val fileName: String = request.body.asFormUrlEncoded.flatMap(_.get("fileName").flatMap(_.headOption)).get
+        val fileNamePattern = "^([\\w\\s-]+/)*[\\w\\s-]+\\.[A-Za-z]{2,4}$".r
+        if (!fileNamePattern.matches(fileName)) {
+//          Future.successful(BadRequest(views.html.unsuccessful("Invalid file name")))
+          Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm.fill(formData), extraMessage = "Invalid file name")))
+        }
+        else {
+          val path: String = if (folderPath == "") fileName else s"$folderPath/$fileName"
+          service.createGithubFile(username = username, repoName = repoName, path = path, body = formData).value.map{
+            case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
+            case Left(error) => { error.reason match {
+              case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+              case "Bad response from upstream; got status: 422, and got reason: File already exists" => BadRequest(views.html.unsuccessful("File already exists"))
+              case _ => BadRequest(views.html.unsuccessful(error.reason))
+            }}
+          }
+        }
+      }
+    )
+  }
+
+  // update - using curl request
   def updateFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[UpdateRequestBody] match {
       case JsSuccess(requestBody, _) =>
@@ -151,6 +185,39 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  // update - using form
+  def updateForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
+    service.getFileInfo(username = username, repoName = repoName, path = filePath).value.map {
+      case Right(file) => {
+        val decodedContent = new String(Base64.getDecoder.decode(file.content.replaceAll("\n", "")))
+        val formWithDetails = UpdateRequestBody.updateForm.fill(UpdateRequestBody(commitMessage = "", newFileContent = decodedContent, fileSHA = file.sha))
+        Ok(views.html.updatefile(username, repoName, filePath, formWithDetails))
+      }
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
+    }
+  }
+  def updateFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
+    accessToken //call the accessToken method
+    UpdateRequestBody.updateForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
+      formWithErrors => {
+        Future.successful(BadRequest(views.html.updatefile(username, repoName, filePath, formWithErrors)))
+      },
+      formData => {  // formData is an UpdateRequestBody
+        service.updateGithubFile(username = username, repoName = repoName, path = filePath, body = formData).value.map{
+          case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, filePath))
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+            case _ => BadRequest(views.html.unsuccessful(error.reason))
+          }}
+        }
+      }
+    )
+  }
+
+  // delete - using curl request
   def deleteFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[DeleteRequestBody] match {
       case JsSuccess(requestBody, _) =>
@@ -163,6 +230,37 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         }
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }
+  }
+
+  // delete - using form
+  def deleteForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
+    service.getFileInfo(username = username, repoName = repoName, path = filePath).value.map {
+      case Right(file) => {
+        val formWithDetails = DeleteRequestBody.deleteForm.fill(DeleteRequestBody(commitMessage = "", fileSHA = file.sha))
+        Ok(views.html.deletefile(username, repoName, filePath, formWithDetails))
+      }
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
+    }
+  }
+  def deleteFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
+    accessToken //call the accessToken method
+    DeleteRequestBody.deleteForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
+      formWithErrors => {
+        Future.successful(BadRequest(views.html.deletefile(username, repoName, filePath, formWithErrors)))
+      },
+      formData => {  // formData is a DeleteRequestBody
+        service.deleteGithubFile(username = username, repoName = repoName, path = filePath, body = formData).value.map{
+          case Right(response) => Ok(views.html.confirmation("File deleted"))
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+            case _ => BadRequest(views.html.unsuccessful(error.reason))
+          }}
+        }
+      }
+    )
   }
 
 

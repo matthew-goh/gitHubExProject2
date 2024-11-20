@@ -58,7 +58,21 @@ class GithubService @Inject()(connector: GithubConnector) {
       "message" -> body.commitMessage,
       "sha" -> body.fileSHA
     )
-     println(requestBody)
+//     println(requestBody)
     connector.delete(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
+
+//  // version called by ApplicationController createFormSubmit()
+//  def createGithubFile(urlOverride: Option[String] = None, username: String, repoName: String, folderPath: String,
+//                       bodyWithFileName: Option[Map[String, Seq[String]]], formData: CreateRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+//    val fileName: String = bodyWithFileName.flatMap(_.get("fileName").flatMap(_.headOption)).get
+//    val path: String = folderPath + fileName
+//
+//    val encodedContent = Base64.getEncoder.encodeToString(formData.fileContent.getBytes("UTF-8"))
+//    val requestBody = Json.obj(
+//      "message" -> formData.commitMessage,
+//      "content" -> encodedContent
+//    )
+//    connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
+//  }
 }

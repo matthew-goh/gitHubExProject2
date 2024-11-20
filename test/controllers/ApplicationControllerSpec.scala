@@ -126,7 +126,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       ) // .withCRSFToken not needed?
       val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
       status(addUserResult) shouldBe Status.OK
-      contentAsString(addUserResult) should include ("Addition of user successful!")
+      contentAsString(addUserResult) should include ("User added successfully!")
       afterEach()
     }
 
@@ -157,7 +157,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
       status(deleteResult) shouldBe Status.OK
-      contentAsString(deleteResult) should include ("Delete successful!")
+      contentAsString(deleteResult) should include ("User removed successfully!")
     }
 
     "return a BadRequest if the user could not be found" in {
@@ -172,7 +172,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   "ApplicationController .getUserRepos()" should {
     "list the user's repositories" in {
       (mockGithubService.getGithubRepos(_: Option[String], _: String)(_: ExecutionContext))
-        .expects(None, *, *)
+        .expects(None, "matthew-goh", *)
         .returning(EitherT.rightT(GithubServiceSpec.testAPIRepoResult.as[Seq[GithubRepo]]))
         .once()
 
@@ -185,7 +185,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the user is not found" in {
       (mockGithubService.getGithubRepos(_: Option[String], _: String)(_: ExecutionContext))
-        .expects(None, *, *)
+        .expects(None, "??", *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
@@ -198,7 +198,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   "ApplicationController .getRepoItems()" should {
     "list the repository items" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *, *)
+        .expects(None, "matthew-goh", "scala101", "", *)
         .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
         .once()
 
@@ -211,7 +211,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the repository is not found" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *, *)
+        .expects(None, "matthew-goh", "abc", "", *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
@@ -224,7 +224,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   "ApplicationController .getFromPath()" should {
     "list the folder's items if the path is a folder" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *, *)
+        .expects(None, "matthew-goh", "scala101", "src", *)
         .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
         .once()
 
@@ -237,12 +237,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "display the file's contents if the path is a file" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *, *)
+        .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))
         .once()
 
       (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *, *)
+        .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
         .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
         .once()
 
@@ -255,7 +255,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the path is invalid" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, *, *, *, *)
+        .expects(None, "matthew-goh", "scala101", "badpath", *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
@@ -272,7 +272,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "create a file on GitHub" in {
       (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
@@ -284,7 +284,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the username or repository does not exist" in {
       (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "abc", "testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "User or repository not found")))
         .once()
 
@@ -296,7 +296,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a BadRequest if another API error occurred" in {
       (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "test-repo", "invalid//testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
         .once()
 
@@ -314,12 +314,70 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
+  "ApplicationController .createFormSubmit()" should {
+    val body = CreateRequestBody("Test commit", "Test file content")
+
+    "create a file on GitHub" in {
+      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/folder2/testfile.txt", body, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
+        "fileName" -> "folder2/testfile.txt",
+        "commitMessage" -> "Test commit",
+        "fileContent" -> "Test file content"
+      )
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "folder1")(createFileRequest)
+      status(createFileResult) shouldBe Status.SEE_OTHER
+      redirectLocation(createFileResult) shouldBe Some("/github/users/matthew-goh/repos/test-repo/folder1/folder2/testfile.txt")
+    }
+
+    "detect a form with errors" in {
+      val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
+        "fileName" -> "testfile.txt",
+        "commitMessage" -> "",
+        "fileContent" -> "text"
+      )
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
+      status(createFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(createFileResult) should include ("Please fill in all required fields")
+    }
+
+    "detect an invalid file name" in {
+      val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
+        "fileName" -> "invalid//file",
+        "commitMessage" -> "Test commit",
+        "fileContent" -> "text"
+      )
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
+      status(createFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(createFileResult) should include ("Invalid file name")
+    }
+
+    "return a BadRequest if the file already exists" in {
+      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "File already exists")))
+        .once()
+
+      val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
+        "fileName" -> "testfile.txt",
+        "commitMessage" -> "Test commit",
+        "fileContent" -> "Test file content"
+      )
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
+      status(createFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(createFileResult) should include ("File already exists")
+    }
+  }
+
   "ApplicationController .updateFile()" should {
     val body = UpdateRequestBody("Test commit", "Test file content", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 
     "update a file on GitHub" in {
       (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
@@ -331,7 +389,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the username or repository does not exist" in {
       (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "abc", "testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "User or repository not found")))
         .once()
 
@@ -343,7 +401,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a BadRequest if another API error occurred" in {
       (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
         .once()
 
@@ -362,12 +420,59 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
+  "ApplicationController .updateFormSubmit()" should {
+    val body = UpdateRequestBody("Test commit", "New file content", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+
+    "update a file on GitHub" in {
+      (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      val updateFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/update/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test commit",
+        "newFileContent" -> "New file content"
+      )
+      val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
+      status(updateFileResult) shouldBe Status.SEE_OTHER
+      redirectLocation(updateFileResult) shouldBe Some("/github/users/matthew-goh/repos/test-repo/folder1/testfile.txt")
+    }
+
+    "detect a form with errors" in {
+      val updateFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/update/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "",
+        "newFileContent" -> "New file content"
+      )
+      val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
+      status(updateFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(updateFileResult) should include ("New file content")
+    }
+
+    "return a BadRequest if the update failed" in {
+      (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(403, "Authentication failed")))
+        .once()
+
+      val updateFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/update/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test commit",
+        "newFileContent" -> "New file content"
+      )
+      val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
+      status(updateFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(updateFileResult) should include ("Bad response from upstream; got status: 403, and got reason: Authentication failed")
+    }
+  }
+
   "ApplicationController .deleteFile()" should {
     val body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 
     "delete a file on GitHub" in {
       (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
         .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
         .once()
 
@@ -379,7 +484,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the username, repository or file does not exist" in {
       (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "abc", "test-repo", "testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
@@ -391,7 +496,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a BadRequest if another API error occurred" in {
       (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
-        .expects(None, *, *, *, *, *)
+        .expects(None, "matthew-goh", "test-repo", "/testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
         .once()
 
@@ -407,6 +512,50 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(deleteFileResult) shouldBe "Invalid request body"
+    }
+  }
+
+  "ApplicationController .deleteFormSubmit()" should {
+    val body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+
+    "delete a file on GitHub" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
+        .once()
+
+      val deleteFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/delete/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test delete"
+      )
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
+      status(deleteFileResult) shouldBe Status.OK
+      contentAsString(deleteFileResult) should include ("File deleted successfully!")
+    }
+
+    "detect a form with errors" in {
+      val deleteFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/delete/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> ""
+      )
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
+      status(deleteFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(deleteFileResult) should include ("4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+    }
+
+    "return a NotFound if the file is not found" in {
+      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "abc.txt", body, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      val deleteFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/delete/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test delete"
+      )
+      val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "abc.txt")(deleteFileRequest)
+      status(deleteFileResult) shouldBe Status.NOT_FOUND
+      contentAsString(deleteFileResult) should include ("Path not found")
     }
   }
 

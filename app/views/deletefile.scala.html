@@ -1,0 +1,21 @@
+@import models.UpdateRequestBody
+@import helper._
+
+@*RequestHeader needed for form with CRSF, messages needed for specific form defined for a model*@
+@(username: String, repoName: String, filePath: String, deleteForm: Form[DeleteRequestBody])(implicit request: RequestHeader, messages: Messages)
+
+@main("Delete File"){
+    <div class="container mb-5">
+        <h2>Delete file in @repoName by @username</h2>
+        <p><b>File:</b> @filePath</p>
+        @helper.form(action = routes.ApplicationController.deleteFormSubmit(username, repoName, filePath)) {
+            @helper.CSRF.formField
+            @helper.inputText(deleteForm("fileSHA"), Symbol("_label") -> "File SHA (read-only)", Symbol("size") -> "45", Symbol("readonly") -> "readonly")
+            @helper.inputText(deleteForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
+            <input class="submitButton" type="submit" value="Submit">
+        }
+        <br>
+        <p><a href="@routes.ApplicationController.getFromPath(username, repoName, filePath)"> Back to File Contents </a></p>
+        <p><a href="@routes.HomeController.index()"> Back to Home </a></p>
+    </div>
+}

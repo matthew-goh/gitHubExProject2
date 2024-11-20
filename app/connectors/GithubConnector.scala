@@ -82,7 +82,7 @@ class GithubConnector @Inject()(ws: WSClient) {
           result => {
             val resultBody: JsValue = Json.parse(result.body)
             val message: Option[String] = (resultBody \ "message").asOpt[String]
-            println(s"${result.status} $resultBody \n $message")
+//            println(s"${result.status} $resultBody \n $message")
             result.status match {
               case 200 | 201 => Right(resultBody)
               case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
@@ -121,7 +121,7 @@ class GithubConnector @Inject()(ws: WSClient) {
           result => {
             val resultBody: JsValue = Json.parse(result.body)
             val message: Option[String] = (resultBody \ "message").asOpt[String]
-            println(s"${result.status} $resultBody \n $message")
+//            println(s"${result.status} $resultBody \n $message")
             result.status match {
               case 200 => Right(resultBody)
               case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
