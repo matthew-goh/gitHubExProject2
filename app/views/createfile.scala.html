@@ -1,0 +1,35 @@
+@import models.CreateRequestBody
+@import helper._
+
+@*RequestHeader needed for form with CRSF, messages needed for specific form defined for a model*@
+@(username: String, repoName: String, folderPath: String, createForm: Form[CreateRequestBody],
+        extraMessage: String = "")(implicit request: RequestHeader, messages: Messages)
+
+@main("Create File"){
+  <div class="container mb-5">
+    <h2>Create a file in @repoName by @username</h2>
+    @if(folderPath != ""){
+      <h3>In folder: @folderPath</h3>
+    }
+    @if(extraMessage != ""){
+      <p class="error-text">@extraMessage</p>
+    }
+    @helper.form(action = routes.ApplicationController.createFormSubmit(username, repoName, folderPath)) {
+      @helper.CSRF.formField
+      <p> File name <br>
+        <input type="text" name="fileName" placeholder="Enter file name" class="form-control" size="35" required> <br>
+        <small class="input-note"> Required; Can optionally include a folder path, e.g. folder1/folder2/filename.txt </small>
+      </p>
+      @helper.inputText(createForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
+      @helper.textarea(createForm("fileContent"), Symbol("_label") -> "File content", Symbol("rows") -> "10", Symbol("cols") -> "75")
+      <input class="submitButton" type="submit" value="Submit">
+    }
+    <br>
+    @if(folderPath != ""){
+      <p><a href="@routes.ApplicationController.getFromPath(username, repoName, folderPath)"> Back to Folder </a></p>
+    } else {
+      <p><a href="@routes.ApplicationController.getRepoItems(username, repoName)"> Back to Repository </a></p>
+    }
+    <p><a href="@routes.HomeController.index()"> Back to Home </a></p>
+  </div>
+}

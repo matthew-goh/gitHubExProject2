@@ -123,6 +123,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
 
   ///// METHODS TO MODIFY GITHUB /////
+  // create - using curl request
   def createFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[CreateRequestBody] match {
       case JsSuccess(requestBody, _) =>
@@ -137,6 +138,39 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  // create - using form
+  def createForm(username: String, repoName: String, folderPath: String): Action[AnyContent] = Action.async { implicit request =>
+    Future.successful(Ok(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm)))
+  }
+  def createFormSubmit(username: String, repoName: String, folderPath: String): Action[AnyContent] =  Action.async {implicit request =>
+    accessToken //call the accessToken method
+    CreateRequestBody.createForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
+      formWithErrors => {
+        Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, formWithErrors, extraMessage = "Please fill in all required fields")))
+      },
+      formData => {  // formData is a CreateRequestBody
+        val fileName: String = request.body.asFormUrlEncoded.flatMap(_.get("fileName").flatMap(_.headOption)).get
+        val fileNamePattern = "^([\\w\\s-]+/)*[\\w\\s-]+\\.[A-Za-z]{2,4}$".r
+        if (!fileNamePattern.matches(fileName)) {
+//          Future.successful(BadRequest(views.html.unsuccessful("Invalid file name")))
+          Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm.fill(formData), extraMessage = "Invalid file name")))
+        }
+        else {
+          val path: String = if (folderPath == "") fileName else s"$folderPath/$fileName"
+          service.createGithubFile(username = username, repoName = repoName, path = path, body = formData).value.map{
+            case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
+            case Left(error) => { error.reason match {
+              case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+              case "Bad response from upstream; got status: 422, and got reason: File already exists" => BadRequest(views.html.unsuccessful("File already exists"))
+              case _ => BadRequest(views.html.unsuccessful(error.reason))
+            }}
+          }
+        }
+      }
+    )
+  }
+
+  // update - using curl request
   def updateFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[UpdateRequestBody] match {
       case JsSuccess(requestBody, _) =>
@@ -151,6 +185,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  // delete - using curl request
   def deleteFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[DeleteRequestBody] match {
       case JsSuccess(requestBody, _) =>

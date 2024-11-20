@@ -107,3 +107,13 @@ th, td {
     height: 22px;
     margin: 10px 10px 0 10px; /* top, right, bottom, left */
 }
+
+/* Form inputs */
+.input-note {
+    color: grey;
+    font-size: 0.85em; /* Adjust size as needed */
+}
+
+.error-text {
+    color: red;
+}
