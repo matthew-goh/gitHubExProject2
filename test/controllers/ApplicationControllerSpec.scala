@@ -420,6 +420,53 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
   }
 
+  "ApplicationController .updateFormSubmit()" should {
+    val body = UpdateRequestBody("Test commit", "New file content", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+
+    "update a file on GitHub" in {
+      (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      val updateFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/update/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test commit",
+        "newFileContent" -> "New file content"
+      )
+      val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
+      status(updateFileResult) shouldBe Status.SEE_OTHER
+      redirectLocation(updateFileResult) shouldBe Some("/github/users/matthew-goh/repos/test-repo/folder1/testfile.txt")
+    }
+
+    "detect a form with errors" in {
+      val updateFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/update/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "",
+        "newFileContent" -> "New file content"
+      )
+      val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
+      status(updateFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(updateFileResult) should include ("New file content")
+    }
+
+    "return a BadRequest if the update failed" in {
+      (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(403, "Authentication failed")))
+        .once()
+
+      val updateFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/update/form").withFormUrlEncodedBody(
+        "fileSHA" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7",
+        "commitMessage" -> "Test commit",
+        "newFileContent" -> "New file content"
+      )
+      val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
+      status(updateFileResult) shouldBe Status.BAD_REQUEST
+      contentAsString(updateFileResult) should include ("Bad response from upstream; got status: 403, and got reason: Authentication failed")
+    }
+  }
+
   "ApplicationController .deleteFile()" should {
     val body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 

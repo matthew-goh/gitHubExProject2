@@ -185,6 +185,38 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
+  // update - using form
+  def updateForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
+    service.getFileInfo(username = username, repoName = repoName, path = filePath).value.map {
+      case Right(file) => {
+        val decodedContent = new String(Base64.getDecoder.decode(file.content.replaceAll("\n", "")))
+        val formWithDetails = UpdateRequestBody.updateForm.fill(UpdateRequestBody(commitMessage = "", newFileContent = decodedContent, fileSHA = file.sha))
+        Ok(views.html.updatefile(username, repoName, filePath, formWithDetails))
+      }
+      case Left(error) => { error.reason match {
+        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+      }}
+    }
+  }
+  def updateFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
+    accessToken //call the accessToken method
+    UpdateRequestBody.updateForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
+      formWithErrors => {
+        Future.successful(BadRequest(views.html.updatefile(username, repoName, filePath, formWithErrors)))
+      },
+      formData => {  // formData is an UpdateRequestBody
+        service.updateGithubFile(username = username, repoName = repoName, path = filePath, body = formData).value.map{
+          case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, filePath))
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+            case _ => BadRequest(views.html.unsuccessful(error.reason))
+          }}
+        }
+      }
+    )
+  }
+
   // delete - using curl request
   def deleteFile(username: String, repoName: String, path: String): Action[JsValue] = Action.async(parse.json) { implicit request =>
     request.body.validate[DeleteRequestBody] match {
