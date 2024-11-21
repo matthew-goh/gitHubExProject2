@@ -168,9 +168,32 @@ th, td {
 /*}*/
 
 /* Form inputs */
+.file-name-input {
+    margin-left: 28pt;
+}
 .input-note {
     color: grey;
-    font-size: 0.85em; /* Adjust size as needed */
+    font-size: 0.9em; /* Adjust size as needed */
+    margin-left: 28pt;
+}
+
+.info { /* "Required" text below commit message field */
+    color: grey;
+    font-size: 0.9em; /* Adjust size as needed */
+}
+
+input[type="text"],
+textarea {
+    border: 1px solid #ccc;    /* Add a border to inputs */
+    padding: 10px;             /* Add padding */
+    font-size: 14px;           /* Adjust font size */
+    border-radius: 4px;        /* Rounded corners */
+}
+
+label {
+    font-size: 16px;           /* Adjust label font size */
+    color: #333;               /* Set label text color */
+    font-weight: bold;         /* Make label text bold */
 }
 
 .error-text {

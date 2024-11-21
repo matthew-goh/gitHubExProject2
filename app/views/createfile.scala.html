@@ -16,8 +16,9 @@
     }
     @helper.form(action = routes.ApplicationController.createFormSubmit(username, repoName, folderPath)) {
       @helper.CSRF.formField
-      <p> File name <br>
-        <input type="text" name="fileName" placeholder="Enter file name" class="form-control" size="35" required> <br>
+      <p>
+        <label for="fileName">File name</label><br>
+        <input type="text" class="file-name-input" name="fileName" placeholder="Enter file name" size="35" required> <br>
         <small class="input-note"> Required; Can optionally include a folder path, e.g. folder1/folder2/filename.txt </small>
       </p>
       @helper.inputText(createForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
