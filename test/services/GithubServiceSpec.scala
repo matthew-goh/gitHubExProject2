@@ -230,6 +230,95 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
       }
     }
   }
+
+  "processRequestFromForm" should {
+    val url: String = "testUrl"
+    val createBody = Json.obj(
+      "message" -> "Test commit",
+      "content" -> Base64.getEncoder.encodeToString("Test file content".getBytes("UTF-8"))
+    )
+    val updateBody = Json.obj(
+      "message" -> "Test commit",
+      "content" -> Base64.getEncoder.encodeToString("Test file content".getBytes("UTF-8")),
+      "sha" -> "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"
+    )
+    val deleteBody = Json.obj(
+      "message" -> "Test delete",
+      "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
+    )
+
+    "return a JsValue for a successful create call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, createBody, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testCreateResult)
+      }
+    }
+
+    "return an error for a create call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, createBody, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
+        .once()
+
+      whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
+      }
+    }
+
+    "return a JsValue for a successful update call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, updateBody, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
+        .once()
+
+      whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testCreateResult)
+      }
+    }
+
+    "return an error for an update call" in {
+      (mockConnector.createUpdate(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, updateBody, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
+        .once()
+
+      whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = UpdateRequestBody("Test commit", "Test file content", "3eed7ec08d20f5749d88b819d20e0be5775a7e3b")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(409, "sha does not match"))
+      }
+    }
+
+    "return a JsValue for a successful delete call" in {
+      (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, deleteBody, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
+        .once()
+
+      whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "testfile.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
+        result shouldBe Right(GithubServiceSpec.testDeleteResult)
+      }
+    }
+
+    "return an error for a delete call" in {
+      (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
+        .expects(url, deleteBody, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
+        path = "invalid//file.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+      }
+    }
+  }
 }
 
 object GithubServiceSpec {

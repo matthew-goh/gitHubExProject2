@@ -83,22 +83,22 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
-  }
 
-  "return a Could not connect error if the response cannot be mapped to a User" in {
-    stubFor(get(urlEqualTo("/github/users/abc"))
-      .willReturn(aResponse()
-        .withStatus(200)
-        .withHeader("Content-Type", "application/json")
-        .withBody("""{
-          |  "login": "matthew-goh",
-          |  "id": 186605436,
-          |  "followers": 0,
-          |  "following": 0
-          |}""".stripMargin)))
+    "return a Could not connect error if the response cannot be mapped to a User" in {
+      stubFor(get(urlEqualTo("/github/users/abc"))
+        .willReturn(aResponse()
+          .withStatus(200)
+          .withHeader("Content-Type", "application/json")
+          .withBody("""{
+            |  "login": "matthew-goh",
+            |  "id": 186605436,
+            |  "followers": 0,
+            |  "following": 0
+            |}""".stripMargin)))
 
-    whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/abc").value) { result =>
-      result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
+      whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/abc").value) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
+      }
     }
   }
 

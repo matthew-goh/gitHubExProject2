@@ -62,17 +62,47 @@ class GithubService @Inject()(connector: GithubConnector) {
     connector.delete(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
 
-//  // version called by ApplicationController createFormSubmit()
-//  def createGithubFile(urlOverride: Option[String] = None, username: String, repoName: String, folderPath: String,
-//                       bodyWithFileName: Option[Map[String, Seq[String]]], formData: CreateRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
-//    val fileName: String = bodyWithFileName.flatMap(_.get("fileName").flatMap(_.headOption)).get
-//    val path: String = folderPath + fileName
-//
-//    val encodedContent = Base64.getEncoder.encodeToString(formData.fileContent.getBytes("UTF-8"))
-//    val requestBody = Json.obj(
-//      "message" -> formData.commitMessage,
-//      "content" -> encodedContent
-//    )
-//    connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
-//  }
+  ///// USING TYPE CLASSES /////
+  trait ValidRequest[T] {
+    def callGithubConnector(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: T)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue]
+  }
+
+  object ValidRequest {
+    implicit object CreateRequest extends ValidRequest[CreateRequestBody] {
+      def callGithubConnector(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: CreateRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+        val encodedContent = Base64.getEncoder.encodeToString(body.fileContent.getBytes("UTF-8"))
+        val requestBody = Json.obj(
+          "message" -> body.commitMessage,
+          "content" -> encodedContent
+        )
+        connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
+      }
+    }
+    implicit object UpdateRequest extends ValidRequest[UpdateRequestBody] {
+      def callGithubConnector(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: UpdateRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+        val encodedContent = Base64.getEncoder.encodeToString(body.newFileContent.getBytes("UTF-8"))
+        val requestBody = Json.obj(
+          "message" -> body.commitMessage,
+          "content" -> encodedContent,
+          "sha" -> body.fileSHA
+        )
+        connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
+      }
+    }
+    implicit object DeleteRequest extends ValidRequest[DeleteRequestBody] {
+      def callGithubConnector(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: DeleteRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
+        val requestBody = Json.obj(
+          "message" -> body.commitMessage,
+          "sha" -> body.fileSHA
+        )
+        connector.delete(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
+      }
+    }
+  }
+
+  def processRequestFromForm[T](urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: T)
+                               (implicit ec: ExecutionContext, requestObj: ValidRequest[T]): EitherT[Future, APIError, JsValue] = {
+    requestObj.callGithubConnector(urlOverride, username, repoName, path, body)
+  }
+  ///// END: USING TYPE CLASSES /////
 }
