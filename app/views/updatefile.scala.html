@@ -7,16 +7,22 @@
 @main("Update File"){
     <div class="container mb-5">
         <h2>Update file in @repoName by @username</h2>
-        <p><b>File:</b> @filePath</p>
+        <h3>File: <i>@filePath</i></h3>
         @helper.form(action = routes.ApplicationController.updateFormSubmit(username, repoName, filePath)) {
             @helper.CSRF.formField
             @helper.inputText(updateForm("fileSHA"), Symbol("_label") -> "File SHA (read-only)", Symbol("size") -> "45", Symbol("readonly") -> "readonly")
             @helper.inputText(updateForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
             @helper.textarea(updateForm("newFileContent"), Symbol("_label") -> "File content", Symbol("rows") -> "10", Symbol("cols") -> "75")
-            <input class="submitButton" type="submit" value="Submit">
+            <input class="button-link" type="submit" value="Submit">
         }
         <br>
-        <p><a href="@routes.ApplicationController.getFromPath(username, repoName, filePath)"> Back to File Contents </a></p>
-        <p><a href="@routes.HomeController.index()"> Back to Home </a></p>
+        <p><a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, filePath)">
+            <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+            Back to File Contents
+        </a></p>
+        <p><a class="image-text-link" href="@routes.HomeController.index">
+            <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+            Back to Home
+        </a></p>
     </div>
 }

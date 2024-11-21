@@ -4,29 +4,32 @@
 
 @(user: UserModel)(implicit request: RequestHeader)
 @main("Find GitHub User"){
-  <h1>Making GitHub with Scala Play</h1>
+  <div class="container mb-5">
+    <h1>Making GitHub with Scala Play</h1>
+    <p><a class="image-text-link" href="@routes.HomeController.index">
+      <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+      Back to Home
+    </a></p>
+  </div>
 
-  <h2>User details</h2>
-  <p>Username: @user.username</p>
-  <p>Location: @user.location</p>
-  <p>Account created: @{user.accountCreatedTime.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}</p>
-  <p>Number of followers: @user.numFollowers</p>
-  <p>Number following: @user.numFollowing</p>
+  <div class="container mb-5">
+    <h2>User details</h2>
+    <p>Username: @user.username</p>
+    <p>Location: @user.location</p>
+    <p>Account created: @{user.accountCreatedTime.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}</p>
+    <p>Number of followers: @user.numFollowers</p>
+    <p>Number following: @user.numFollowing</p>
 
-  <p><a href="@routes.ApplicationController.getUserRepos(user.username)"> <b>See repositories</b> </a></p>
+    <p><a href="@routes.ApplicationController.getUserRepos(user.username)"> <b>See repositories</b> </a></p>
 
-  <form action="@routes.ApplicationController.addUser()" method="POST" class="button-form">
-    @CSRF.formField
-    <input type="hidden" name="username" value="@user.username" required>
-    <input type="hidden" name="location" value="@user.location">
-    <input type="hidden" name="accountCreatedTime" value="@user.accountCreatedTime" required>
-    <input type="hidden" name="numFollowers" value="@user.numFollowers" required>
-    <input type="hidden" name="numFollowing" value="@user.numFollowing" required>
-    <button type="submit">Add to database</button>
-  </form>
-@*  <form action="@routes.ApplicationController.deleteBook(bookData._id)" method="GET" class="button-form">*@
-@*    <button type="submit">Delete</button>*@
-@*  </form>*@
-
-  <p><a href="@routes.HomeController.index"> Back </a></p>
+    <form action="@routes.ApplicationController.addUser()" method="POST" class="button-form">
+      @CSRF.formField
+      <input type="hidden" name="username" value="@user.username" required>
+      <input type="hidden" name="location" value="@user.location">
+      <input type="hidden" name="accountCreatedTime" value="@user.accountCreatedTime" required>
+      <input type="hidden" name="numFollowers" value="@user.numFollowers" required>
+      <input type="hidden" name="numFollowing" value="@user.numFollowing" required>
+      <button type="submit">Add to database</button>
+    </form>
+  </div>
 }

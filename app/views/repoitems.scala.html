@@ -1,28 +1,39 @@
 @(repoItemList: Seq[RepoItem], username: String, repoName: String)
 @main("Repository Items"){
-    <h1>Making GitHub with Scala Play</h1>
+    <div class="container mb-5">
+        <h1>Making GitHub with Scala Play</h1>
 
-    <p><a href="@routes.HomeController.index"> Back to Home </a></p>
-    <p><a href="@routes.ApplicationController.getUserRepos(username)"> Back to user's repositories </a></p>
+        <p><a class="image-text-link" href="@routes.HomeController.index">
+            <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+            Back to Home
+        </a></p>
+        <p><a class="image-text-link" href="@routes.ApplicationController.getUserRepos(username)">
+            <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+            Back to user's repositories
+        </a></p>
+    </div>
 
-    <h2>Repository @repoName by @username</h2>
-    <p><a href="@routes.ApplicationController.createForm(username, repoName, "")"> Add a file here </a></p>
-    @if(repoItemList.isEmpty) {
-        <p>No items in repository.</p>
-    } else {
-        <ul>
-        @for(item <- repoItemList) {
-            <li>
-                <div class="icon-container">
-                <p>
-                    @if(item.itemType == "file") {
-                        <img class="file-icon" src="@routes.Assets.versioned("images/file-icon.png")" alt="File Icon">
-                    } else { <img class="file-icon" src="@routes.Assets.versioned("images/folder-icon.png")" alt="Folder Icon"> }
-                    <a href="@routes.ApplicationController.getFromPath(username, repoName, item.path)"> @item.name </a>
-                </p>
-                </div>
-            </li>
-        }
-        </ul>
+    <div class="container mb-5">
+        <h2>Repository @repoName by @username</h2>
+        <p><a href="@routes.ApplicationController.createForm(username, repoName, "")" class="button-link"> + Add a file here </a></p>
+        @if(repoItemList.isEmpty) {
+            <p>No items in repository.</p>
+        } else {
+            <ul class="list">
+            @for(item <- repoItemList) {
+                <li class="list-item">
+                    <span class="bullet"></span>
+                    <a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, item.path)">
+                        @if(item.itemType == "file") {
+                            <img class="link-icon" src="@routes.Assets.versioned("images/file-icon.png")" alt="File Icon">
+                        } else {
+                            <img class="link-icon" src="@routes.Assets.versioned("images/folder-icon.png")" alt="Folder Icon">
+                            }
+                        @item.name
+                    </a>
+                </li>
+            }
+            </ul>
+    </div>
     }
 }

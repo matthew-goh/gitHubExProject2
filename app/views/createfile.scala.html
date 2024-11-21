@@ -22,14 +22,23 @@
       </p>
       @helper.inputText(createForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
       @helper.textarea(createForm("fileContent"), Symbol("_label") -> "File content", Symbol("rows") -> "10", Symbol("cols") -> "75")
-      <input class="submitButton" type="submit" value="Submit">
+      <input class="button-link" type="submit" value="Submit">
     }
     <br>
     @if(folderPath != ""){
-      <p><a href="@routes.ApplicationController.getFromPath(username, repoName, folderPath)"> Back to Folder </a></p>
+      <p><a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, folderPath)">
+        <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+        Back to Folder
+      </a></p>
     } else {
-      <p><a href="@routes.ApplicationController.getRepoItems(username, repoName)"> Back to Repository </a></p>
+      <p><a class="image-text-link" href="@routes.ApplicationController.getRepoItems(username, repoName)">
+        <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+        Back to Repository
+      </a></p>
     }
-    <p><a href="@routes.HomeController.index()"> Back to Home </a></p>
+    <p><a class="image-text-link" href="@routes.HomeController.index">
+      <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+      Back to Home
+    </a></p>
   </div>
 }

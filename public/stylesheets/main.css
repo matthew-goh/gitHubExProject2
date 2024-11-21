@@ -55,10 +55,31 @@ li {
     margin-bottom: 10px;
 }
 
+.list {
+    list-style: none; /* Removes default bullets */
+    padding-top: 10px;
+    margin: 0;
+}
+
+.list-item {
+    display: flex;       /* Makes the list item a Flexbox container */
+    align-items: center; /* Vertically aligns bullet, image, and text */
+    margin-bottom: 10px; /* Adds spacing between list items */
+}
+
+.bullet {
+    width: 6px;               /* Bullet size */
+    height: 6px;              /* Bullet size */
+    background-color: #333;  /* Bullet color */
+    border-radius: 50%;       /* Makes the bullet circular */
+    margin: 0 15px 8px 0;       /* top, right, bottom, left */
+    flex-shrink: 0;           /* Prevents shrinking if the list item is resized */
+}
+
 /* Buttons */
 button {
     background-color: #3498db;
-    color: #fff;
+    color: white;
     border: none;
     padding: 10px 15px;
     border-radius: 5px;
@@ -76,12 +97,50 @@ button:hover {
     margin-bottom: 15px;
 }
 
+.button-link {
+    display: inline-block;       /* Makes the <a> behave like a block-level element for padding/margins */
+    padding: 10px 15px;          /* Adds space inside the button */
+    font-size: 16px;             /* Sets the font size */
+    color: white;                /* Sets the text color */
+    background-color: #3498db;  /* Button background color */
+    border: none;                /* Removes border */
+    border-radius: 5px;          /* Rounds the corners */
+    text-decoration: none;       /* Removes underline */
+    text-align: center;          /* Centers text */
+    cursor: pointer;             /* Changes the cursor to pointer on hover */
+    /*margin-left: 15px;*/
+}
+
+.button-link:hover {
+    background-color: #2980b9;  /* Changes background color on hover */
+    text-decoration: none;
+}
+
 /* Images */
 img {
     max-width: 100%;
     height: auto;
     border-radius: 5px;
 }
+
+.image-text-link {
+    display: inline-flex;         /* Enables Flexbox for the link */
+    align-items: center;          /* Centers image and text vertically */
+    text-decoration: none;        /* Removes underline */
+    font-size: 16px;              /* Adjust text size */
+    gap: 8px;                     /* Space between image and text */
+    margin-bottom: 8px;
+}
+
+.link-icon {
+    width: 24px;                  /* Set desired image size */
+    height: 24px;
+}
+
+.image-text-link:hover .link-icon {
+    transform: scale(1.1);    /* Slightly enlarges the icon on hover */
+}
+
 
 /* Tables */
 table {
@@ -95,18 +154,18 @@ th, td {
 }
 
 /* Icons */
-.icon-container {
-    display: flex;
-    align-items: center; /* vertical alignment */
-    /*justify-content: center;*/
-    height: 28px;
-}
+/*.icon-container {*/
+/*    display: flex;*/
+/*    align-items: center; !* vertical alignment *!*/
+/*    !*justify-content: center;*!*/
+/*    height: 28px;*/
+/*}*/
 
-.file-icon {
-    width: auto;
-    height: 22px;
-    margin: 10px 10px 0 10px; /* top, right, bottom, left */
-}
+/*.file-icon {*/
+/*    width: auto;*/
+/*    height: 22px;*/
+/*    margin: 10px 10px 0 10px; !* top, right, bottom, left *!*/
+/*}*/
 
 /* Form inputs */
 .input-note {
