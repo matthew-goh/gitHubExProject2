@@ -157,7 +157,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         }
         else {
           val path: String = if (folderPath == "") fileName else s"$folderPath/$fileName"
-          service.createGithubFile(username = username, repoName = repoName, path = path, body = formData).value.map{
+          service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
             case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
             case Left(error) => { error.reason match {
               case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
@@ -206,7 +206,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         Future.successful(BadRequest(views.html.updatefile(username, repoName, filePath, formWithErrors)))
       },
       formData => {  // formData is an UpdateRequestBody
-        service.updateGithubFile(username = username, repoName = repoName, path = filePath, body = formData).value.map{
+        service.processRequestFromForm(username = username, repoName = repoName, path = filePath, body = formData).value.map{
           case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, filePath))
           case Left(error) => { error.reason match {
             case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
@@ -252,7 +252,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         Future.successful(BadRequest(views.html.deletefile(username, repoName, filePath, formWithErrors)))
       },
       formData => {  // formData is a DeleteRequestBody
-        service.deleteGithubFile(username = username, repoName = repoName, path = filePath, body = formData).value.map{
+        service.processRequestFromForm(username = username, repoName = repoName, path = filePath, body = formData).value.map{
           case Right(response) => Ok(views.html.confirmation("File deleted"))
           case Left(error) => { error.reason match {
             case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))

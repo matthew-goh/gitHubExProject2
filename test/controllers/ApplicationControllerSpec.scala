@@ -318,8 +318,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     val body = CreateRequestBody("Test commit", "Test file content")
 
     "create a file on GitHub" in {
-      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "test-repo", "folder1/folder2/testfile.txt", body, *)
+      (mockGithubService.processRequestFromForm[CreateRequestBody](_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[CreateRequestBody]))
+        .expects(None, "matthew-goh", "test-repo", "folder1/folder2/testfile.txt", body, *, mockGithubService.ValidRequest.CreateRequest)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
@@ -356,8 +356,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a BadRequest if the file already exists" in {
-      (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
+      (mockGithubService.processRequestFromForm[CreateRequestBody](_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[CreateRequestBody]))
+        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *, mockGithubService.ValidRequest.CreateRequest)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "File already exists")))
         .once()
 
@@ -424,8 +424,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     val body = UpdateRequestBody("Test commit", "New file content", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 
     "update a file on GitHub" in {
-      (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+      (mockGithubService.processRequestFromForm[UpdateRequestBody](_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[UpdateRequestBody]))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *, mockGithubService.ValidRequest.UpdateRequest)
         .returning(EitherT.rightT(GithubServiceSpec.testCreateResult))
         .once()
 
@@ -451,8 +451,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a BadRequest if the update failed" in {
-      (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+      (mockGithubService.processRequestFromForm[UpdateRequestBody](_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[UpdateRequestBody]))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *, mockGithubService.ValidRequest.UpdateRequest)
         .returning(EitherT.leftT(APIError.BadAPIResponse(403, "Authentication failed")))
         .once()
 
@@ -519,8 +519,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     val body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 
     "delete a file on GitHub" in {
-      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *)
+      (mockGithubService.processRequestFromForm[DeleteRequestBody](_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[DeleteRequestBody]))
+        .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *, mockGithubService.ValidRequest.DeleteRequest)
         .returning(EitherT.rightT(GithubServiceSpec.testDeleteResult))
         .once()
 
@@ -544,8 +544,8 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a NotFound if the file is not found" in {
-      (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "test-repo", "abc.txt", body, *)
+      (mockGithubService.processRequestFromForm[DeleteRequestBody](_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[DeleteRequestBody]))
+        .expects(None, "matthew-goh", "test-repo", "abc.txt", body, *, mockGithubService.ValidRequest.DeleteRequest)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 

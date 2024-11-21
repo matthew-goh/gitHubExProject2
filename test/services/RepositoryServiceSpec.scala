@@ -114,11 +114,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.create(_: UserModel))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add book"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))))
         .once()
 
       whenReady(testRepoService.create(userModel)) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add book"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))
       }
     }
   }
