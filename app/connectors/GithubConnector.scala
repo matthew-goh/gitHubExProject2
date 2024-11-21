@@ -10,11 +10,11 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class GithubConnector @Inject()(ws: WSClient) {
   def get[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Response] = {
-    val githubToken = sys.env.get("GITHUB_TOKEN")
-//    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+//    val githubToken = sys.env.get("GITHUB_TOKEN")
+    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
     val request = ws.url(url)
-    val requestWithAuth = githubToken match {
+    val requestWithAuth = personalToken match {
       case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token")
       case None => request
     }
@@ -39,11 +39,11 @@ class GithubConnector @Inject()(ws: WSClient) {
   }
 
   def getList[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Seq[Response]] = {
-    val githubToken = sys.env.get("GITHUB_TOKEN")
-//    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+//    val githubToken = sys.env.get("GITHUB_TOKEN")
+    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
     val request = ws.url(url)
-    val requestWithAuth = githubToken match {
+    val requestWithAuth = personalToken match {
       case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token")
       case None => request
     }

@@ -3,31 +3,37 @@
 
 @(userList: Seq[UserModel])
 @main("Users in Database"){
-  <h1>Making GitHub with Scala Play</h1>
+  <div class="container mb-5">
+    <h1>Making GitHub with Scala Play</h1>
+    <p><a class="image-text-link" href="@routes.HomeController.index">
+      <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+      Back to Home
+    </a></p>
+  </div>
 
-  <p><a href="@routes.HomeController.index"> Back </a></p>
-
-  <h2>User details</h2>
-  @if(userList.isEmpty) {
-    <p>No users found.</p>
-  } else {
-    <ul>
-    @for(user <- userList) {
-      <li>
-        <p>Username: @user.username</p>
-        <p>Location: @user.location</p>
-        <p>Account created: @{user.accountCreatedTime.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}</p>
-        <p>Number of followers: @user.numFollowers</p>
-        <p>Number following: @user.numFollowing</p>
-      </li>
-      <p><a href="@routes.ApplicationController.getUserRepos(user.username)"> <b>See repositories</b> </a></p>
-@*      <form action="@routes.ApplicationController.updateUser(user.username)" method="GET" class="button-form">*@
-@*        <button type="submit">Update</button>*@
-@*      </form>*@
-      <form action="@routes.ApplicationController.deleteUser(user.username)" method="GET" class="button-form">
-        <button type="submit">Remove</button>
-      </form>
-    }
-    </ul>
+  <div class="container mb-5">
+    <h2>User details</h2>
+    @if(userList.isEmpty) {
+      <p>No users found.</p>
+    } else {
+      <ul>
+      @for(user <- userList) {
+        <li>
+          <p>Username: @user.username</p>
+          <p>Location: @user.location</p>
+          <p>Account created: @{user.accountCreatedTime.atZone(ZoneId.of("UTC")).format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm"))}</p>
+          <p>Number of followers: @user.numFollowers</p>
+          <p>Number following: @user.numFollowing</p>
+        </li>
+        <p><a href="@routes.ApplicationController.getUserRepos(user.username)"> <b>See repositories</b> </a></p>
+  @*      <form action="@routes.ApplicationController.updateUser(user.username)" method="GET" class="button-form">*@
+  @*        <button type="submit">Update</button>*@
+  @*      </form>*@
+        <form action="@routes.ApplicationController.deleteUser(user.username)" method="GET" class="button-form">
+          <button type="submit">Remove</button>
+        </form>
+      }
+      </ul>
+  </div>
   }
 }

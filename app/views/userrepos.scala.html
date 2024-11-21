@@ -1,23 +1,30 @@
 @(repoList: Seq[GithubRepo], username: String)
 @main("Repositories"){
-    <h1>Making GitHub with Scala Play</h1>
+    <div class="container mb-5">
+        <h1>Making GitHub with Scala Play</h1>
 
-    <p><a href="@routes.HomeController.index"> Back to Home </a></p>
-    <p><a href="@routes.ApplicationController.getUserDetails(username)"> Back to user details </a></p>
+        <p><a class="image-text-link" href="@routes.HomeController.index">
+            <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+            Back to Home
+        </a></p>
+        <p><a class="image-text-link" href="@routes.ApplicationController.getUserDetails(username)">
+            <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+            Back to user details
+        </a></p>
+    </div>
 
-    <h2>Public Repositories of @username</h2>
-    @if(repoList.isEmpty) {
-        <p>No repositories found.</p>
-    } else {
-        <ul>
-        @for(repo <- repoList) {
-            <li>
-                <p><a href="@routes.ApplicationController.getRepoItems(username, repo.name)"> @repo.name </a></p>
-@*                <p>Location: @user.location</p>*@
-@*                <p>Number of followers: @user.numFollowers</p>*@
-@*                <p>Number following: @user.numFollowing</p>*@
-            </li>
-        }
-        </ul>
+    <div class="container mb-5">
+        <h2>Public Repositories of @username</h2>
+        @if(repoList.isEmpty) {
+            <p>No repositories found.</p>
+        } else {
+            <ul>
+            @for(repo <- repoList) {
+                <li>
+                    <p><a href="@routes.ApplicationController.getRepoItems(username, repo.name)"> @repo.name </a></p>
+                </li>
+            }
+            </ul>
+    </div>
     }
 }

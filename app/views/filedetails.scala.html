@@ -5,28 +5,43 @@
 
 @(file: FileInfo, username: String, repoName: String)
 @main("File Details"){
-    <h1>Making GitHub with Scala Play</h1>
+    <div class="container mb-5">
+        <h1>Making GitHub with Scala Play</h1>
 
-    <p><a href="@routes.HomeController.index"> Back to Home </a></p>
-    @if(Paths.get(file.path).getParent != null) {
-        <p><a href="@routes.ApplicationController.getFromPath(username, repoName, Paths.get(file.path).getParent.toString)"> Back one level </a></p>
-    } else {
-        <p><a href="@routes.ApplicationController.getRepoItems(username, repoName)"> Back one level </a></p>
-    }
+        <p><a class="image-text-link" href="@routes.HomeController.index">
+            <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+            Back to Home
+        </a></p>
+        @if(Paths.get(file.path).getParent != null) {
+            <p><a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, Paths.get(file.path).getParent.toString)">
+                <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+                Back one level
+            </a></p>
+        } else {
+            <p><a class="image-text-link" href="@routes.ApplicationController.getRepoItems(username, repoName)">
+                <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+                Back one level
+            </a></p>
+        }
+    </div>
 
-    <h2>Repository @repoName by @username</h2>
-    <h3>Details of <i>@file.name</i></h3>
-    <p><b>Path:</b> @repoName/@file.path</p>
-    <form action="@routes.ApplicationController.updateForm(username, repoName, file.path)" method="GET" class="button-form">
-        <button type="submit">Update</button>
-    </form>
-    <form action="@routes.ApplicationController.deleteForm(username, repoName, file.path)" method="GET" class="button-form">
-        <button type="submit">Delete</button>
-    </form>
-    <p><b>Contents:</b> <br>
-        @* new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))) is the decoded string (newlines are somehow preserved) *@
-        @* @raw(decodedString.replace("\n", "<br>")) is to change all newlines to <br> so that it displays on a new line on the page *@
-        @raw(new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))).replace("\n", "<br>"))
-    </p>
+    <div class="container mb-5">
+        <h2>Repository @repoName by @username</h2>
+        <h3>Details of <i>@file.name</i></h3>
+        <p><b>Path:</b> @repoName/@file.path</p>
+        <form action="@routes.ApplicationController.updateForm(username, repoName, file.path)" method="GET" class="button-form">
+            <button type="submit">Update</button>
+        </form>
+        <form action="@routes.ApplicationController.deleteForm(username, repoName, file.path)" method="GET" class="button-form">
+            <button type="submit">Delete</button>
+        </form>
+    </div>
 
+    <div class="container mb-5">
+        <p><b>Contents:</b> <br>
+            @* new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))) is the decoded string (newlines are somehow preserved) *@
+            @* @raw(decodedString.replace("\n", "<br>")) is to change all newlines to <br> so that it displays on a new line on the page *@
+            @raw(new String(Base64.getDecoder.decode(file.content.replaceAll("\n", ""))).replace("\n", "<br>"))
+        </p>
+    </div>
 }
