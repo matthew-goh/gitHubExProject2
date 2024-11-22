@@ -230,7 +230,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
       status(searchResult) shouldBe OK
-      contentAsString(searchResult) should include ("Contents of folder src")
+      contentAsString(searchResult) should include ("Contents of folder: <i>src</i>")
       contentAsString(searchResult) should include (".gitignore")
       contentAsString(searchResult) should include ("project")
     }

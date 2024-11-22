@@ -63,7 +63,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |}
           """.stripMargin)))
 
-      whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/matthew-goh").value) { result =>
+      whenReady(TestGithubConnector.get[User](s"http://$Host:$Port/github/users/matthew-goh").value) { result =>
         result shouldBe Right(User("matthew-goh", None, Instant.parse("2024-10-28T15:22:40Z"), 0, 0))
       }
     }
@@ -79,7 +79,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |  "status": "404"
             |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/abc").value) { result =>
+      whenReady(TestGithubConnector.get[User](s"http://$Host:$Port/github/users/abc").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
@@ -96,7 +96,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |  "following": 0
             |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.get[User]("http://localhost:8080/github/users/abc").value) { result =>
+      whenReady(TestGithubConnector.get[User](s"http://$Host:$Port/github/users/abc").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
       }
     }
@@ -176,7 +176,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |]
           """.stripMargin)))
 
-      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/github/repos/matthew-goh/scala101/contents").value) { result =>
+      whenReady(TestGithubConnector.getList[RepoItem](s"http://$Host:$Port/github/repos/matthew-goh/scala101/contents").value) { result =>
         result shouldBe Right(GithubServiceSpec.testRepoItemsList)
       }
     }
@@ -192,7 +192,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
                       |  "status": "404"
                       |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/github/repos/matthew-goh/abc/contents").value) { result =>
+      whenReady(TestGithubConnector.getList[RepoItem](s"http://$Host:$Port/github/repos/matthew-goh/abc/contents").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
       }
     }
@@ -218,7 +218,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
                       |  }
                       |}""".stripMargin)))
 
-      whenReady(TestGithubConnector.getList[RepoItem]("http://localhost:8080/github/repos/matthew-goh/scala101/contents/build.sbt").value) { result =>
+      whenReady(TestGithubConnector.getList[RepoItem](s"http://$Host:$Port/github/repos/matthew-goh/scala101/contents/build.sbt").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
       }
     }
@@ -251,7 +251,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withHeader("Content-Type", "application/json")
           .withBody(responseBody)))
 
-      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/matthew-goh/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate(s"http://$Host:$Port/github/create/matthew-goh/repos/test-repo/testfile.txt",
         Json.obj(
         "message" -> "Another test commit",
         "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -273,7 +273,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withHeader("Content-Type", "application/json")
           .withBody("""{"message":"Not Found","documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"404"}""")))
 
-      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/abc/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate(s"http://$Host:$Port/github/create/abc/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -298,7 +298,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"testfile.txt does not match 3eed7ec08d20f5749d88b819d20e0be5775a7e3b",
               |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"409"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/update/abc/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate(s"http://$Host:$Port/github/update/abc/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Test update",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU=",
@@ -323,7 +323,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"path contains a malformed path component","errors":[{"resource":"Commit","field":"path","code":"invalid"}],
               |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt",
+      whenReady(TestGithubConnector.createUpdate(s"http://$Host:$Port/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt",
         Json.obj(
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -347,7 +347,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"Invalid request.\n\n\"sha\" wasn't supplied.",
               |"documentation_url":"https://docs.github.com/rest/repos/contents#create-or-update-file-contents","status":"422"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.createUpdate("http://localhost:8080/github/create/matthew-goh/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.createUpdate(s"http://$Host:$Port/github/create/matthew-goh/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
@@ -378,7 +378,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withHeader("Content-Type", "application/json")
           .withBody(responseBody)))
 
-      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.delete(s"http://$Host:$Port/github/delete/matthew-goh/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Test delete",
           "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
@@ -400,7 +400,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           .withHeader("Content-Type", "application/json")
           .withBody("""{"message":"Not Found","documentation_url":"https://docs.github.com/rest/repos/contents#delete-a-file","status":"404"}""")))
 
-      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo/badfile.txt",
+      whenReady(TestGithubConnector.delete(s"http://$Host:$Port/github/delete/matthew-goh/repos/test-repo/badfile.txt",
         Json.obj(
           "message" -> "Test delete",
           "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
@@ -424,7 +424,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"testfile.txt does not match 4753fddcf141a3798b6aed0e81f56c7f14535ed7",
               |"documentation_url":"https://docs.github.com/rest/repos/contents#delete-a-file","status":"409"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo/testfile.txt",
+      whenReady(TestGithubConnector.delete(s"http://$Host:$Port/github/delete/matthew-goh/repos/test-repo/testfile.txt",
         Json.obj(
           "message" -> "Test delete",
           "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
@@ -448,7 +448,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             """{"message":"path cannot start with a slash","errors":[{"resource":"Commit","field":"path","code":"invalid"}],
               |"documentation_url":"https://docs.github.com/rest/repos/contents#delete-a-file","status":"422"}""".stripMargin)))
 
-      whenReady(TestGithubConnector.delete("http://localhost:8080/github/delete/matthew-goh/repos/test-repo//testfile.txt",
+      whenReady(TestGithubConnector.delete(s"http://$Host:$Port/github/delete/matthew-goh/repos/test-repo//testfile.txt",
         Json.obj(
           "message" -> "Test delete",
           "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
