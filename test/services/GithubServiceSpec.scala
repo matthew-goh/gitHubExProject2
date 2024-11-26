@@ -148,7 +148,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
-        path = "testfile.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        path = "testfile.txt", body = CreateRequestBody("testfile.txt", "Test commit", "Test file content")).value) { result =>
         result shouldBe Right(GithubServiceSpec.testCreateResult)
       }
     }
@@ -160,7 +160,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.createGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
-        path = "invalid//file.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        path = "invalid//file.txt", body = CreateRequestBody("file.txt", "Test commit", "Test file content")).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
       }
     }
@@ -254,7 +254,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
-        path = "testfile.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        path = "testfile.txt", body = CreateRequestBody("testfile.txt", "Test commit", "Test file content")).value) { result =>
         result shouldBe Right(GithubServiceSpec.testCreateResult)
       }
     }
@@ -266,7 +266,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
-        path = "invalid//file.txt", body = CreateRequestBody("Test commit", "Test file content")).value) { result =>
+        path = "invalid//file.txt", body = CreateRequestBody("file.txt", "Test commit", "Test file content")).value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
       }
     }

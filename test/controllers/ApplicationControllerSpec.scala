@@ -268,7 +268,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
   ///// METHODS TO MODIFY GITHUB /////
   "ApplicationController .createFile()" should {
-    val body = CreateRequestBody("Test commit", "Test file content")
+    val body = CreateRequestBody("testfile.txt", "Test commit", "Test file content")
 
     "create a file on GitHub" in {
       (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
@@ -315,7 +315,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   }
 
   "ApplicationController .createFormSubmit()" should {
-    val body = CreateRequestBody("Test commit", "Test file content")
+    val body = CreateRequestBody("folder2/testfile.txt", "Test commit", "Test file content")
 
     "create a file on GitHub" in {
       (mockGithubService.processRequestFromForm[CreateRequestBody](_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[CreateRequestBody]))
@@ -341,7 +341,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       )
       val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(createFileResult) should include ("Please fill in all required fields")
+      contentAsString(createFileResult) should include ("testfile.txt")
     }
 
     "detect an invalid file name" in {
@@ -352,17 +352,17 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       )
       val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(createFileResult) should include ("Invalid file name")
+      contentAsString(createFileResult) should include ("invalid//file")
     }
 
     "return a BadRequest if the file already exists" in {
       (mockGithubService.processRequestFromForm[CreateRequestBody](_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[CreateRequestBody]))
-        .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *, mockGithubService.ValidRequest.CreateRequest)
+        .expects(None, "matthew-goh", "test-repo", "folder2/testfile.txt", body, *, mockGithubService.ValidRequest.CreateRequest)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "File already exists")))
         .once()
 
       val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
-        "fileName" -> "testfile.txt",
+        "fileName" -> "folder2/testfile.txt",
         "commitMessage" -> "Test commit",
         "fileContent" -> "Test file content"
       )
@@ -412,7 +412,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a BadRequest if the request body could not be parsed into an UpdateRequestBody" in {
-      val createBody = CreateRequestBody("Test commit", "Test file content")
+      val createBody = CreateRequestBody("testfile.txt", "Test commit", "Test file content") // create instead of update
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/update/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(createBody))
       val updateFileResult: Future[Result] = TestApplicationController.updateFile("matthew-goh", "test-repo", "testfile.txt")(request)
       status(updateFileResult) shouldBe Status.BAD_REQUEST
@@ -507,7 +507,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a BadRequest if the request body could not be parsed into a DeleteRequestBody" in {
-      val createBody = CreateRequestBody("Test commit", "Test file content")
+      val createBody = CreateRequestBody("testfile.txt", "Test commit", "Test file content") // create instead of delete
       val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(createBody))
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST

@@ -199,3 +199,7 @@ label {
 .error-text {
     color: red;
 }
+
+.error {
+    color: red;
+}
