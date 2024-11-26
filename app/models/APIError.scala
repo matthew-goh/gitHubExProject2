@@ -12,7 +12,7 @@ object APIError {
 
   final case class BadAPIResponse(upstreamStatus: Int, upstreamMessage: String)
     extends APIError(
-      Status.INTERNAL_SERVER_ERROR,
+      upstreamStatus, // Status.INTERNAL_SERVER_ERROR,
       s"Bad response from upstream; got status: $upstreamStatus, and got reason: $upstreamMessage"
     )
 
