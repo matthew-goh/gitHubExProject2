@@ -29,10 +29,10 @@
         <h2>Repository @repoName by @username</h2>
         <h3>Details of <i>@file.name</i></h3>
         <p><b>Path:</b> @repoName/@file.path</p>
-        <form action="@routes.ApplicationController.updateForm(username, repoName, file.path)" method="GET" class="button-form">
+        <form action="@routes.ApplicationController.showUpdateForm(username, repoName, file.path)" method="GET" class="button-form">
             <button type="submit">Update</button>
         </form>
-        <form action="@routes.ApplicationController.deleteForm(username, repoName, file.path)" method="GET" class="button-form">
+        <form action="@routes.ApplicationController.showDeleteForm(username, repoName, file.path)" method="GET" class="button-form">
             <button type="submit">Delete</button>
         </form>
     </div>

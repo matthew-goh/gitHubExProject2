@@ -16,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class ApplicationController @Inject()(repoService: RepositoryService, service: GithubService, val controllerComponents: ControllerComponents)
                                      (implicit ec: ExecutionContext) extends BaseController with play.api.i18n.I18nSupport {
   ///// METHODS CALLED BY FRONTEND /////
-  def accessToken(implicit request: Request[_]) = {
+  def accessToken()(implicit request: Request[_]): Option[CSRF.Token] = {
     CSRF.getToken
   }
 
@@ -29,7 +29,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   def listAllUsers(): Action[AnyContent] = Action.async {implicit request =>
     repoService.index().map{
       case Right(userList: Seq[UserModel]) => Ok(views.html.userlisting(userList))
-      case Left(error) => Status(error.httpResponseStatus)(error.reason)
+      case Left(error) => NotFound(views.html.unsuccessful("Unable to reach database"))
     }
   }
 
@@ -47,13 +47,13 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   }
 
   def searchUser(): Action[AnyContent] = Action.async {implicit request =>
-    accessToken
+    accessToken()
     val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
     Future.successful(Redirect(routes.ApplicationController.getUserDetails(username)))
   }
 
   def addUser(): Action[AnyContent] = Action.async {implicit request =>
-    accessToken
+    accessToken()
 //    println(request.body.asFormUrlEncoded) // type is Option[Map[String, Seq[String]]]
     repoService.create(request.body.asFormUrlEncoded).map{
       case Right(_) => Ok(views.html.confirmation("User added"))
@@ -134,16 +134,16 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
             case _ => BadRequest {error.reason}
           }}
         }
-      case JsError(_) => Future(BadRequest {"Invalid request body"})
+      case JsError(_) => Future.successful(BadRequest {"Invalid request body"})
     }
   }
 
   // create - using form
-  def createForm(username: String, repoName: String, folderPath: String): Action[AnyContent] = Action.async { implicit request =>
+  def showCreateForm(username: String, repoName: String, folderPath: String): Action[AnyContent] = Action.async { implicit request =>
     Future.successful(Ok(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm)))
   }
   def createFormSubmit(username: String, repoName: String, folderPath: String): Action[AnyContent] =  Action.async {implicit request =>
-    accessToken //call the accessToken method
+    accessToken()
     CreateRequestBody.createForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
         Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, formWithErrors, extraMessage = "Please fill in all required fields")))
@@ -156,7 +156,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
           Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm.fill(formData), extraMessage = "Invalid file name")))
         }
         else {
-          val path: String = if (folderPath == "") fileName else s"$folderPath/$fileName"
+          val path: String = if (folderPath.isEmpty) fileName else s"$folderPath/$fileName"
           service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
             case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
             case Left(error) => { error.reason match {
@@ -186,7 +186,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   }
 
   // update - using form
-  def updateForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
+  def showUpdateForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
     service.getFileInfo(username = username, repoName = repoName, path = filePath).value.map {
       case Right(file) => {
         val decodedContent = new String(Base64.getDecoder.decode(file.content.replaceAll("\n", "")))
@@ -200,7 +200,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
   def updateFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
-    accessToken //call the accessToken method
+    accessToken()
     UpdateRequestBody.updateForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
         Future.successful(BadRequest(views.html.updatefile(username, repoName, filePath, formWithErrors)))
@@ -233,7 +233,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   }
 
   // delete - using form
-  def deleteForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
+  def showDeleteForm(username: String, repoName: String, filePath: String): Action[AnyContent] = Action.async { implicit request =>
     service.getFileInfo(username = username, repoName = repoName, path = filePath).value.map {
       case Right(file) => {
         val formWithDetails = DeleteRequestBody.deleteForm.fill(DeleteRequestBody(commitMessage = "", fileSHA = file.sha))
@@ -246,7 +246,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
   def deleteFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
-    accessToken //call the accessToken method
+    accessToken()
     DeleteRequestBody.deleteForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
         Future.successful(BadRequest(views.html.deletefile(username, repoName, filePath, formWithErrors)))

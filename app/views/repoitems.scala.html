@@ -15,7 +15,7 @@
 
     <div class="container mb-5">
         <h2>Repository @repoName by @username</h2>
-        <p><a href="@routes.ApplicationController.createForm(username, repoName, "")" class="button-link"> + Add a file here </a></p>
+        <p><a href="@routes.ApplicationController.showCreateForm(username, repoName, "")" class="button-link"> + Add a file here </a></p>
         @if(repoItemList.isEmpty) {
             <p>No items in repository.</p>
         } else {

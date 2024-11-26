@@ -18,11 +18,11 @@ GET     /github/users/:username/repos     controllers.ApplicationController.getU
 GET     /github/users/:username/repos/:repoName     controllers.ApplicationController.getRepoItems(username: String, repoName: String)
 GET     /github/users/:username/repos/:repoName/*path     controllers.ApplicationController.getFromPath(username: String, repoName: String, path: String)
 
-GET     /github/create/form      controllers.ApplicationController.createForm(username: String, repoName: String, path: String)
+GET     /github/create/form      controllers.ApplicationController.showCreateForm(username: String, repoName: String, path: String)
 POST     /github/create/form      controllers.ApplicationController.createFormSubmit(username: String, repoName: String, path: String)
-GET     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.updateForm(username: String, repoName: String, path: String)
+GET     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.showUpdateForm(username: String, repoName: String, path: String)
 POST     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.updateFormSubmit(username: String, repoName: String, path: String)
-GET     /github/delete/form/:username/:repoName/*path      controllers.ApplicationController.deleteForm(username: String, repoName: String, path: String)
+GET     /github/delete/form/:username/:repoName/*path      controllers.ApplicationController.showDeleteForm(username: String, repoName: String, path: String)
 POST     /github/delete/form/:username/:repoName/*path      controllers.ApplicationController.deleteFormSubmit(username: String, repoName: String, path: String)
 # using curl requests
 PUT     /github/create/:username/repos/:repoName/*path     controllers.ApplicationController.createFile(username: String, repoName: String, path: String)
