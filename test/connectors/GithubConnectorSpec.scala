@@ -68,7 +68,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return a Not found error" in {
+    "return a Not found error if the response cannot be mapped to a User" in {
       stubFor(get(urlEqualTo("/github/users/abc"))
         .willReturn(aResponse()
           .withStatus(200)
@@ -84,17 +84,12 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return a Could not connect error if the response cannot be mapped to a User" in {
+    "return a Could not connect error if the response cannot be converted to a JsValue" in {
       stubFor(get(urlEqualTo("/github/users/abc"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
-          .withBody("""{
-            |  "login": "matthew-goh",
-            |  "id": 186605436,
-            |  "followers": 0,
-            |  "following": 0
-            |}""".stripMargin)))
+          .withBody("""{name: John}""")))
 
       whenReady(TestGithubConnector.get[User](s"http://$Host:$Port/github/users/abc").value) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
@@ -181,7 +176,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return a Not found error" in {
+    "return a Not found erro rif the response cannot be mapped to a Seq[RepoItem]" in {
       stubFor(get(urlEqualTo("/github/repos/matthew-goh/abc/contents"))
         .willReturn(aResponse()
           .withStatus(200)
@@ -197,25 +192,13 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return a Could not connect error if the response cannot be mapped to a Seq[RepoItem]" in {
+    "return a Could not connect error if the response cannot be converted to a JsValue" in {
       stubFor(get(urlEqualTo("/github/repos/matthew-goh/scala101/contents/build.sbt"))
         .willReturn(aResponse()
           .withStatus(200)
           .withHeader("Content-Type", "application/json")
-          .withBody("""{
-                      |  "name": "build.sbt",
-                      |  "path": "build.sbt",
-                      |  "sha": "477a19d9089787571e77878c7fe0fc5b05541753",
-                      |  "size": 387,
-                      |  "url": "https://api.github.com/repos/matthew-goh/scala101/contents/build.sbt?ref=main",
-                      |  "type": "file",
-                      |  "content": "VGhpc0J1aWxkIC8gdmVyc2lvbiA6PSAiMC4xLjAtU05BUFNIT1QiCgpUaGlz\nQnVpbGQgLyBzY2FsYVZlcnNpb24gOj0gIjIuMTMuMTQiCgpsYXp5IHZhbCBy\nb290ID0gKHByb2plY3QgaW4gZmlsZSgiLiIpKQogIC5zZXR0aW5ncygKICAg\nIG5hbWUgOj0gInNjYWxhMTAxIgogICkKCi8vbGlicmFyeURlcGVuZGVuY2ll\ncyArPSAib3JnLnNjYWxhLWxhbmcubW9kdWxlcyIgJSUgInNjYWxhLXBhcnNl\nci1jb21iaW5hdG9ycyIgJSAiMS4xLjIiCmxpYnJhcnlEZXBlbmRlbmNpZXMg\nKz0gIm9yZy5zY2FsYWN0aWMiICUlICJzY2FsYWN0aWMiICUgIjMuMi4xOSIK\nbGlicmFyeURlcGVuZGVuY2llcyArPSAib3JnLnNjYWxhdGVzdCIgJSUgInNj\nYWxhdGVzdCIgJSAiMy4yLjE5IiAlIFRlc3QK\n",
-                      |  "encoding": "base64",
-                      |  "_links": {
-                      |    "self": "https://api.github.com/repos/matthew-goh/scala101/contents/build.sbt?ref=main",
-                      |    "git": "https://api.github.com/repos/matthew-goh/scala101/git/blobs/477a19d9089787571e77878c7fe0fc5b05541753",
-                      |    "html": "https://github.com/matthew-goh/scala101/blob/main/build.sbt"
-                      |  }
+          .withBody("""{"name": "John",
+                      |  age: 30
                       |}""".stripMargin)))
 
       whenReady(TestGithubConnector.getList[RepoItem](s"http://$Host:$Port/github/repos/matthew-goh/scala101/contents/build.sbt").value) { result =>

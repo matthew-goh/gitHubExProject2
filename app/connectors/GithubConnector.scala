@@ -24,13 +24,16 @@ class GithubConnector @Inject()(ws: WSClient) {
     EitherT {
       response.map {
         result => {
-          val resultJson: JsValue = result.json
-          val message: Option[String] = (resultJson \ "message").asOpt[String]
-          message match {
-            // TODO: use validate here, no need message option
-            case None => Right(resultJson.as[Response])
-            case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+          val resultJson: JsValue = Json.parse(result.body)
+          resultJson.validate[Response] match {
+            case JsSuccess(responseItem, _) => Right(responseItem)
+            case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
           }
+//          val message: Option[String] = (resultJson \ "message").asOpt[String]
+//          message match {
+//            case None => Right(resultJson.as[Response])
+//            case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+//          }
         }
       }
       .recover { //case _: WSResponse =>
@@ -54,12 +57,16 @@ class GithubConnector @Inject()(ws: WSClient) {
     EitherT {
       response.map {
           result => {
-            val resultJson: JsValue = result.json
-            val message: Option[String] = (resultJson \ "message").asOpt[String]
-            message match {
-              case None => Right(resultJson.as[Seq[Response]])
-              case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+            val resultJson: JsValue = Json.parse(result.body)
+            resultJson.validate[Seq[Response]] match {
+              case JsSuccess(responseList, _) => Right(responseList)
+              case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
             }
+//            val message: Option[String] = (resultJson \ "message").asOpt[String]
+//            message match {
+//              case None => Right(resultJson.as[Seq[Response]])
+//              case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+//            }
           }
         }
         .recover { //case _: WSResponse =>

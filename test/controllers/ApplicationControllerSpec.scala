@@ -238,7 +238,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "display the file's contents if the path is a file" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
         .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
 
       (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
@@ -255,6 +255,11 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the path is invalid" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+        .expects(None, "matthew-goh", "scala101", "badpath", *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .once()
+
+      (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
         .expects(None, "matthew-goh", "scala101", "badpath", *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
         .once()
