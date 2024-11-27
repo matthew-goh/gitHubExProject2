@@ -48,8 +48,11 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
   def searchUser(): Action[AnyContent] = Action.async {implicit request =>
     accessToken()
-    val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
-    Future.successful(Redirect(routes.ApplicationController.getUserDetails(username)))
+    val usernameSubmitted: Option[String] = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption))
+    usernameSubmitted match {
+      case None | Some("") => Future.successful(BadRequest(views.html.unsuccessful("No username provided")))
+      case Some(username) => Future.successful(Redirect(routes.ApplicationController.getUserDetails(username)))
+    }
   }
 
   def addUser(): Action[AnyContent] = Action.async {implicit request =>

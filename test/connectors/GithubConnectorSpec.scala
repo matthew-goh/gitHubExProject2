@@ -176,7 +176,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return a Not found erro rif the response cannot be mapped to a Seq[RepoItem]" in {
+    "return a Not found error if the response cannot be mapped to a Seq[RepoItem]" in {
       stubFor(get(urlEqualTo("/github/repos/matthew-goh/abc/contents"))
         .willReturn(aResponse()
           .withStatus(200)

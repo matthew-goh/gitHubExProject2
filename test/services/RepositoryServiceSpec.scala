@@ -91,16 +91,15 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
   }
 
   "create (version called by ApplicationController addUser())" should {
-    // type is Option[Map[String, Seq[String]]]
-    val reqBody = Some(Map(
-      "username" -> List("user1"),
-      "location" -> List(),
-      "accountCreatedTime" -> List("2024-10-28T15:22:40Z"),
-      "numFollowers" -> List("0"),
-      "numFollowing" -> List("2")
-    ))
-
     "return a DataModel" in {
+      val reqBody = Some(Map(
+        "username" -> List("user1"),
+        "location" -> List(),
+        "accountCreatedTime" -> List("2024-10-28T15:22:40Z"),
+        "numFollowers" -> List("0"),
+        "numFollowing" -> List("2")
+      ))
+
       (mockRepoTrait.create(_: UserModel))
         .expects(userModel)
         .returning(Future(Right(userModel)))
@@ -111,14 +110,50 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
       }
     }
 
-    "return an error" in {
+    "return an error from DataRepository" in {
+      val reqBody = Some(Map(
+        "username" -> List("user1"),
+        "location" -> List(),
+        "accountCreatedTime" -> List("2024-10-28T15:22:40Z"),
+        "numFollowers" -> List("0"),
+        "numFollowing" -> List("2")
+      ))
+
       (mockRepoTrait.create(_: UserModel))
         .expects(*)
         .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))))
         .once()
 
-      whenReady(testRepoService.create(userModel)) { result =>
+      whenReady(testRepoService.create(reqBody)) { result =>
         result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))
+      }
+    }
+
+    "return an error if a required value is missing" in {
+      val reqBody = Some(Map(
+        "username" -> List(),
+        "location" -> List(),
+        "accountCreatedTime" -> List("2024-10-28T15:22:40Z"),
+        "numFollowers" -> List("0"),
+        "numFollowing" -> List("2")
+      ))
+
+      whenReady(testRepoService.create(reqBody)) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(400, "Missing required value"))
+      }
+    }
+
+    "return an error if an incorrect data type is provided" in {
+      val reqBody = Some(Map(
+        "username" -> List("user1"),
+        "location" -> List(),
+        "accountCreatedTime" -> List("2024-10-28T15:22:40Z"),
+        "numFollowers" -> List("0"),
+        "numFollowing" -> List("xyz")
+      ))
+
+      whenReady(testRepoService.create(reqBody)) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(400, "Invalid data type"))
       }
     }
   }

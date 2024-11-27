@@ -7,8 +7,10 @@ import repositories.DataRepositoryTrait
 import java.time.Instant
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
-class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
+class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
+                                 (implicit ec: ExecutionContext){
 
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]] = {
     repositoryTrait.index()
@@ -19,15 +21,34 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
   }
   // version called by ApplicationController addUser()
   def create(reqBody: Option[Map[String, Seq[String]]]): Future[Either[APIError.BadAPIResponse, UserModel]] = {
-    val username: String = reqBody.flatMap(_.get("username").flatMap(_.headOption)).get
-    val location: String = reqBody.flatMap(_.get("location").flatMap(_.headOption)).getOrElse("")
-    val accountCreated: Instant = Instant.parse(reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
-    val numFollowers: Int = reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
-    val numFollowing: Int = reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
-    // TODO: for comprehension, safe toInt?
+    val missingErrorText = "Missing required value"
+    val invalidTypeErrorText = "Invalid data type"
+    val reqBodyValuesEither: Either[String, (String, Instant, Int, Int)] = for {
+      // if any required value is missing, the result is Left(missingErrorText)
+      username <- reqBody.flatMap(_.get("username").flatMap(_.headOption)).toRight(missingErrorText)
+      accountCreatedStr <- reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).toRight(missingErrorText)
+      numFollowersStr <- reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).toRight(missingErrorText)
+      numFollowingStr <- reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).toRight(missingErrorText)
+      // if any data type is invalid, the result is Left(invalidTypeErrorText)
+      accountCreated <- Try(Instant.parse(accountCreatedStr)).toOption.toRight(invalidTypeErrorText)
+      numFollowers <- Try(numFollowersStr.toInt).toOption.toRight(invalidTypeErrorText)
+      numFollowing <- Try(numFollowingStr.toInt).toOption.toRight(invalidTypeErrorText)
+    } yield (username, accountCreated, numFollowers, numFollowing)
 
-    val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
-    repositoryTrait.create(user)
+    // location can be blank
+    val location: String = reqBody.flatMap(_.get("location").flatMap(_.headOption)).getOrElse("")
+    //    val username: String = reqBody.flatMap(_.get("username").flatMap(_.headOption)).get
+    //    val accountCreated: Instant = Instant.parse(reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
+    //    val numFollowers: Int = reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
+    //    val numFollowing: Int = reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
+
+    reqBodyValuesEither match {
+      case Right((username, accountCreated, numFollowers, numFollowing)) => {
+        val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
+        repositoryTrait.create(user)
+      }
+      case Left(errorText) => Future(Left(APIError.BadAPIResponse(400, errorText)))
+    }
   }
 
   def read(username: String): Future[Either[APIError, UserModel]] = {

@@ -112,6 +112,15 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       status(searchResult) shouldBe Status.SEE_OTHER
       redirectLocation(searchResult) shouldBe Some("/github/users/user1")
     }
+
+    "return a BadRequest if username is blank" in {
+      val searchRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/searchuser").withFormUrlEncodedBody(
+        "username" -> ""
+      )
+      val searchResult: Future[Result] = TestApplicationController.searchUser()(searchRequest)
+      status(searchResult) shouldBe Status.BAD_REQUEST
+      contentAsString(searchResult) should include ("No username provided")
+    }
   }
 
   "ApplicationController .addUser()" should {
