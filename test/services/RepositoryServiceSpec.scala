@@ -6,7 +6,7 @@ import models.{APIError, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import repositories.DataRepositoryTrait
+import repositories.{DataRepositoryTrait, UserModelFields}
 
 import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
@@ -57,11 +57,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.index _)
         .expects()
-        .returning(Future(Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: Database collection not found"))))
+        .returning(Future(Left(APIError.BadAPIResponse(404, "Database collection not found"))))
         .once()
 
       whenReady(testRepoService.index()) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: Database collection not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Database collection not found"))
       }
     }
   }
@@ -81,11 +81,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.create(_: UserModel))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "User already exists in database"))))
         .once()
 
       whenReady(testRepoService.create(userModel)) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "User already exists in database"))
       }
     }
   }
@@ -121,11 +121,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
 
       (mockRepoTrait.create(_: UserModel))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "User already exists in database"))))
         .once()
 
       whenReady(testRepoService.create(reqBody)) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "User already exists in database"))
       }
     }
 
@@ -173,11 +173,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.read(_: String))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: User not found"))))
+        .returning(Future(Left(APIError.BadAPIResponse(404, "User not found"))))
         .once()
 
       whenReady(testRepoService.read("abcd")) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: User not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "User not found"))
       }
     }
   }
@@ -197,19 +197,19 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.update(_: String, _: UserModel))
         .expects(*, *)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to update user"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Unable to update user"))))
         .once()
 
       whenReady(testRepoService.update("user1", newUserModel)) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to update user"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Unable to update user"))
       }
     }
   }
 
   "updateWithValue" should {
     "return an UpdateResult" in {
-      (mockRepoTrait.updateWithValue(_: String, _: String, _: String))
-        .expects(*, *, *)
+      (mockRepoTrait.updateWithValue(_: String, _: UserModelFields.Value, _: String))
+        .expects("user1", UserModelFields.numFollowers, "1")
         .returning(Future(Right(testUpdateResult)))
         .once()
 
@@ -218,14 +218,20 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
       }
     }
 
-    "return an error" in {
-      (mockRepoTrait.updateWithValue(_: String, _: String, _: String))
-        .expects(*, *, *)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Invalid field to update"))))
+    "return an error from DataRepository" in {
+      (mockRepoTrait.updateWithValue(_: String, _: UserModelFields.Value, _: String))
+        .expects("user1", UserModelFields.numFollowing, "xyz")
+        .returning(Future(Left(APIError.BadAPIResponse(500, "New value must be an integer"))))
         .once()
 
+      whenReady(testRepoService.updateWithValue("user1", "numFollowing", "xyz")) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "New value must be an integer"))
+      }
+    }
+
+    "return an error if an invalid field is provided" in {
       whenReady(testRepoService.updateWithValue("user1", "followers", "1")) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Invalid field to update"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Invalid field to update"))
       }
     }
   }
@@ -245,11 +251,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.delete(_: String))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to delete user"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Unable to delete user"))))
         .once()
 
       whenReady(testRepoService.delete("abcd")) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to delete user"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Unable to delete user"))
       }
     }
   }

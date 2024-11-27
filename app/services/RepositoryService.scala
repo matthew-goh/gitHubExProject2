@@ -2,12 +2,12 @@ package services
 
 import models.{APIError, UserModel}
 import org.mongodb.scala.result
-import repositories.DataRepositoryTrait
+import repositories.{DataRepositoryTrait, UserModelFields}
 
 import java.time.Instant
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
                                  (implicit ec: ExecutionContext){
@@ -60,7 +60,11 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
   }
 
   def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
-    repositoryTrait.updateWithValue(username, field, newValue)
+    val fieldTry: Try[UserModelFields.Value] = Try(UserModelFields.withName(field))
+    fieldTry match {
+      case Success(fieldName) => repositoryTrait.updateWithValue(username, fieldName, newValue)
+      case Failure(e) => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
+    }
   }
 
   def delete(username: String): Future[Either[APIError, result.DeleteResult]] = {

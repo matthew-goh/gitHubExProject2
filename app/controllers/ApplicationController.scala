@@ -64,7 +64,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         error.reason match {
           case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
           => BadRequest(views.html.unsuccessful("User already exists in database"))
-          case _ => BadRequest("Unable to add user.")
+          case _ => BadRequest(views.html.unsuccessful(error.reason))
         }
       }
     }
