@@ -24,6 +24,7 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
     val accountCreated: Instant = Instant.parse(reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
     val numFollowers: Int = reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
     val numFollowing: Int = reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
+    // TODO: for comprehension, safe toInt?
 
     val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
     repositoryTrait.create(user)
@@ -41,7 +42,6 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
     repositoryTrait.updateWithValue(username, field, newValue)
   }
 
-  // delete a document
   def delete(username: String): Future[Either[APIError, result.DeleteResult]] = {
     repositoryTrait.delete(username)
   }

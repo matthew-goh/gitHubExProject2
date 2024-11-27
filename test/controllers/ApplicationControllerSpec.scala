@@ -297,13 +297,13 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a BadRequest if another API error occurred" in {
       (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
         .expects(None, "matthew-goh", "test-repo", "invalid//testfile.txt", body, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "path contains a malformed path component")))
         .once()
 
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt").withBody[JsValue](Json.toJson(body))
       val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "test-repo", "invalid//testfile.txt")(request)
       status(createFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(createFileResult) shouldBe "Bad response from upstream; got status: 422, and got reason: Invalid path"
+      contentAsString(createFileResult) shouldBe "Bad response from upstream; got status: 422, and got reason: path contains a malformed path component"
     }
 
     "return a BadRequest if the request body could not be parsed into a CreatedRequestBody" in {
@@ -358,7 +358,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a BadRequest if the file already exists" in {
       (mockGithubService.processRequestFromForm[CreateRequestBody](_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[CreateRequestBody]))
         .expects(None, "matthew-goh", "test-repo", "folder2/testfile.txt", body, *, mockGithubService.ValidRequest.CreateRequest)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "File already exists")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid request.\n\n\"sha\" wasn't supplied.")))
         .once()
 
       val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
@@ -497,13 +497,13 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a BadRequest if another API error occurred" in {
       (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
         .expects(None, "matthew-goh", "test-repo", "/testfile.txt", body, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid path")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(422, "path cannot start with a slash")))
         .once()
 
       val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo//testfile.txt").withBody[JsValue](Json.toJson(body))
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "/testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(deleteFileResult) shouldBe "Bad response from upstream; got status: 422, and got reason: Invalid path"
+      contentAsString(deleteFileResult) shouldBe "Bad response from upstream; got status: 422, and got reason: path cannot start with a slash"
     }
 
     "return a BadRequest if the request body could not be parsed into a DeleteRequestBody" in {
@@ -658,12 +658,17 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       afterEach()
     }
 
-    "add the user to the database if they could not be found" in { // upsert(true)
+    "return a BadRequest if the user could not be found" in { // upsert(false)
       beforeEach()
       val updateRequest: FakeRequest[JsValue] = testRequest.buildPut("/api/${userModel.username}").withBody[JsValue](Json.toJson(newUserModel))
-      val updateResult = TestApplicationController.update("user1")(updateRequest) // Future(<not completed>)
-      status(updateResult) shouldBe Status.ACCEPTED
-      contentAsJson(updateResult).as[UserModel] shouldBe newUserModel
+      val updateResult = TestApplicationController.update("user1")(updateRequest)
+      status(updateResult) shouldBe Status.BAD_REQUEST
+      contentAsString(updateResult) shouldBe "Bad response from upstream; got status: 404, and got reason: User not found"
+
+      // check that database is still empty
+      val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
+      status(indexResult) shouldBe Status.OK
+      contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
       afterEach()
     }
   }

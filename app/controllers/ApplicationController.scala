@@ -154,7 +154,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
           case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
           case Left(error) => { error.reason match {
             case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
-            case "Bad response from upstream; got status: 422, and got reason: File already exists" => BadRequest(views.html.unsuccessful("File already exists"))
+            case "Bad response from upstream; got status: 422, and got reason: Invalid request.\n\n\"sha\" wasn't supplied." => BadRequest(views.html.unsuccessful("File already exists"))
             case _ => BadRequest(views.html.unsuccessful(error.reason))
           }}
         }
@@ -288,7 +288,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsSuccess(userModel, _) =>
         repoService.update(username, userModel).map{
           case Right(_) => Accepted {Json.toJson(request.body)}
-          case Left(error) => Status(error.httpResponseStatus)(error.reason)
+          case Left(error) => BadRequest {error.reason}
         } // dataRepository.update() is a Future[Either[APIError, result.UpdateResult]]
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }

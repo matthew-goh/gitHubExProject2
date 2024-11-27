@@ -5,12 +5,13 @@ import models.{APIError, UserModel}
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.empty
 import org.mongodb.scala.model._
-import org.mongodb.scala.result
+import org.mongodb.scala.{DuplicateKeyException, result}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 @Singleton
 class DataRepository @Inject()(mongoComponent: MongoComponent)
@@ -27,19 +28,23 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   replaceIndexes = false
 ) with DataRepositoryTrait {
 
+  // TODO: change to Try
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]  = {
     try {
       collection.find().toFuture().map{ users: Seq[UserModel] => Right(users) }
     }
     catch {
-      case e: Exception => Future(Left(APIError.BadAPIResponse(404, "Database not found")))
+      case e: Exception => Future(Left(APIError.BadAPIResponse(404, "Database collection not found")))
     }
   }
 
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
     try {
       collection.insertOne(user).toFuture()
-        .map(_ => Right(user))
+        .map{ createdResult =>
+          if (createdResult.wasAcknowledged) Right(user)
+          else Left(APIError.BadAPIResponse(500, "Error: Insertion not acknowledged"))
+        }
         .recover { case _ => Left(APIError.BadAPIResponse(500, "User already exists in database")) }
     }
     catch {
@@ -75,14 +80,27 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       collection.replaceOne(
         filter = byUsername(username),
         replacement = user,
-        options = new ReplaceOptions().upsert(true) //What happens when we set this to false?
-      ).toFuture().map(result => Right(result))
+        options = new ReplaceOptions().upsert(false) // don't add to database if user doesn't exist
+      ).toFuture().map {
+        updateResult =>
+          if (updateResult.wasAcknowledged) {
+            updateResult.getMatchedCount match {
+              case 1 => Right(updateResult)
+              case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+              case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple documents with same username found"))
+            }
+          } else {
+            Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
+          }
+      }
     }
     catch {
       case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
     }
   }
-  // Right result is e.g. AcknowledgedUpdateResult{matchedCount=1, modifiedCount=1, upsertedId=null}
+  // updateResult is e.g. AcknowledgedUpdateResult{matchedCount=1, modifiedCount=1, upsertedId=null}
+
+  private def isIntegerString(value: String): Boolean = value.forall(Character.isDigit)
 
   def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
     field match {
@@ -90,27 +108,41 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
         try {
           collection.updateOne(Filters.equal("username", username), Updates.set(field, newValue)).toFuture().map{
             updateResult =>
-              if (updateResult.getMatchedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
-              else Right(updateResult)
+              if (updateResult.wasAcknowledged) {
+                updateResult.getMatchedCount match {
+                case 1 => Right(updateResult)
+                case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+                case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
+              }
+              } else {
+                Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
+              }
           }
         }
         catch {
           case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
         }
       case "numFollowers" | "numFollowing" =>
-        if(!newValue.forall(Character.isDigit)) {
-          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
-        } else {
-          try{
+        if(isIntegerString(newValue)) {
+          try {
             collection.updateOne(Filters.equal("username", username), Updates.set(field, newValue.toInt)).toFuture().map{
               updateResult =>
-                if (updateResult.getMatchedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
-                else Right(updateResult)
+                if (updateResult.wasAcknowledged) {
+                  updateResult.getMatchedCount match {
+                    case 1 => Right(updateResult)
+                    case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+                    case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
+                  }
+                } else {
+                  Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
+                }
             }
           }
           catch {
             case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
           }
+        } else { // isIntegerString(newValue) == false
+          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
         }
       case _ => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
     }
@@ -120,10 +152,16 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
     try {
       collection.deleteOne(
         filter = byUsername(username)
-      ).toFuture().map {
-        deleteResult =>
-          if (deleteResult.getDeletedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
-          else Right(deleteResult)
+      ).toFuture().map { deleteResult =>
+        if (deleteResult.wasAcknowledged) {
+          deleteResult.getDeletedCount match {
+            case 1 => Right(deleteResult)
+            case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+            case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users deleted"))
+          }
+        } else {
+          Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
+        }
       }
     }
     catch {

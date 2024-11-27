@@ -308,7 +308,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return an invalid path error" in {
+    "return an error if an invalid path is provided" in {
       stubFor(put(urlEqualTo("/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt"))
         .withRequestBody(equalToJson(
           """
@@ -328,11 +328,11 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
         )).value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
+        result shouldBe Left(APIError.BadAPIResponse(422, "path contains a malformed path component"))
       }
     }
 
-    "return a file already exists error" in {
+    "return an error if the file already exists" in {
       stubFor(put(urlEqualTo("/github/create/matthew-goh/repos/test-repo/testfile.txt"))
         .withRequestBody(equalToJson(
           """
@@ -352,7 +352,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           "message" -> "Another test commit",
           "content" -> "Q3JlYXRpbmcgYW5vdGhlciB0ZXN0IGZpbGU="
         )).value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(422, "File already exists"))
+        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid request.\n\n\"sha\" wasn't supplied."))
       }
     }
   }
@@ -433,7 +433,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
       }
     }
 
-    "return an invalid path error" in {
+    "return an error if an invalid path is provided" in {
       stubFor(delete(urlEqualTo("/github/delete/matthew-goh/repos/test-repo//testfile.txt"))
         .withRequestBody(equalToJson(
           """
@@ -453,7 +453,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           "message" -> "Test delete",
           "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
         )).value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(422, "Invalid path"))
+        result shouldBe Left(APIError.BadAPIResponse(422, "path cannot start with a slash"))
       }
     }
   }

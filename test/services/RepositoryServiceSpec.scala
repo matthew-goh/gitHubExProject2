@@ -57,11 +57,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.index _)
         .expects()
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 404, and got reason: Repository not found"))))
+        .returning(Future(Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: Database collection not found"))))
         .once()
 
       whenReady(testRepoService.index()) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 404, and got reason: Repository not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: Database collection not found"))
       }
     }
   }
@@ -81,11 +81,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.create(_: UserModel))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add book"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))))
         .once()
 
       whenReady(testRepoService.create(userModel)) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add book"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 500, and got reason: Unable to add user"))
       }
     }
   }
@@ -138,11 +138,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.read(_: String))
         .expects(*)
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 404, and got reason: User not found"))))
+        .returning(Future(Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: User not found"))))
         .once()
 
       whenReady(testRepoService.read("abcd")) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Bad response from upstream; got status: 404, and got reason: User not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Bad response from upstream; got status: 404, and got reason: User not found"))
       }
     }
   }

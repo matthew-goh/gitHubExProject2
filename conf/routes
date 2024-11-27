@@ -54,10 +54,10 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 # delete: curl -X DELETE "localhost:9000/api/test2"
 
 # createFile
-# curl -X PUT -H "Content-Type: application/json" -d '{"commitMessage": "Test commit", "fileContent": "Creating test file"}' "localhost:9000/github/create/matthew-goh/repos/test-repo/testfile.txt" -i
-# curl -X PUT -H "Content-Type: application/json" -d '{"commitMessage": "Another test commit", "fileContent": "Creating another test file"}' "localhost:9000/github/create/matthew-goh/repos/test-repo/testfolder/testfile2.txt" -i
-# bad path: curl -X PUT -H "Content-Type: application/json" -d '{"commitMessage": "Test commit", "fileContent": "Creating another test file"}' "localhost:9000/github/create/matthew-goh/repos/test-repo/invalid//test.txt" -i
-# curl -X PUT -H "Content-Type: application/json" -d '{"commitMessage": "Test commit", "fileContent": "Creating another test file"}' "localhost:9000/github/create/abc/repos/test-repo/testfile.txt" -i
+# curl -X PUT -H "Content-Type: application/json" -d '{"fileName": "testfile.txt", "commitMessage": "Test commit", "fileContent": "Creating test file"}' "localhost:9000/github/create/matthew-goh/repos/test-repo/testfile.txt" -i
+# curl -X PUT -H "Content-Type: application/json" -d '{"fileName": "testfile2.txt", "commitMessage": "Another test commit", "fileContent": "Creating another test file"}' "localhost:9000/github/create/matthew-goh/repos/test-repo/testfolder/testfile2.txt" -i
+# bad path: curl -X PUT -H "Content-Type: application/json" -d '{"fileName": "test.txt", "commitMessage": "Test commit", "fileContent": "Creating another test file"}' "localhost:9000/github/create/matthew-goh/repos/test-repo/invalid//test.txt" -i
+# curl -X PUT -H "Content-Type: application/json" -d '{"fileName": "testfile.txt", "commitMessage": "Test commit", "fileContent": "Creating another test file"}' "localhost:9000/github/create/abc/repos/test-repo/testfile.txt" -i
 # updateFile (check sha first) - creates the file if doesn't exist
 # curl -X PUT -H "Content-Type: application/json" -d '{"commitMessage": "Test update", "newFileContent": "Updating file", "fileSHA": "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"}' "localhost:9000/github/update/matthew-goh/repos/test-repo/testfile.txt" -i
 # curl -X PUT -H "Content-Type: application/json" -d '{"commitMessage": "Test update", "newFileContent": "Updating file", "fileSHA": "3eed7ec08d20f5749d88b819d20e0be5775a7e3b"}' "localhost:9000/github/update/matthew-goh/repos/test-repo/invalid//test.txt" -i
