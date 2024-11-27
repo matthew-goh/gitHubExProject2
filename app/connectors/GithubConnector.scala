@@ -24,12 +24,16 @@ class GithubConnector @Inject()(ws: WSClient) {
     EitherT {
       response.map {
         result => {
-          val resultJson: JsValue = result.json
-          val message: Option[String] = (resultJson \ "message").asOpt[String]
-          message match {
-            case None => Right(resultJson.as[Response])
-            case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+          val resultJson: JsValue = Json.parse(result.body)
+          resultJson.validate[Response] match {
+            case JsSuccess(responseItem, _) => Right(responseItem)
+            case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
           }
+//          val message: Option[String] = (resultJson \ "message").asOpt[String]
+//          message match {
+//            case None => Right(resultJson.as[Response])
+//            case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+//          }
         }
       }
       .recover { //case _: WSResponse =>
@@ -53,12 +57,16 @@ class GithubConnector @Inject()(ws: WSClient) {
     EitherT {
       response.map {
           result => {
-            val resultJson: JsValue = result.json
-            val message: Option[String] = (resultJson \ "message").asOpt[String]
-            message match {
-              case None => Right(resultJson.as[Seq[Response]])
-              case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+            val resultJson: JsValue = Json.parse(result.body)
+            resultJson.validate[Seq[Response]] match {
+              case JsSuccess(responseList, _) => Right(responseList)
+              case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
             }
+//            val message: Option[String] = (resultJson \ "message").asOpt[String]
+//            message match {
+//              case None => Right(resultJson.as[Seq[Response]])
+//              case Some(_) => Left(APIError.BadAPIResponse(404, "Not found")) // message is "Not Found"
+//            }
           }
         }
         .recover { //case _: WSResponse =>
@@ -88,14 +96,14 @@ class GithubConnector @Inject()(ws: WSClient) {
               case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
               case 404 => Left(APIError.BadAPIResponse(404, "User or repository not found"))
               case 409 => Left(APIError.BadAPIResponse(409, "sha does not match"))
-              case 422 => {
-                message match {
-                  case Some("path contains a malformed path component") | Some("path cannot start with a slash") => Left(APIError.BadAPIResponse(422, "Invalid path"))
-                  case Some("Invalid request.\n\n\"sha\" wasn't supplied.") => Left(APIError.BadAPIResponse(422, "File already exists"))
-                  case _ => Left(APIError.BadAPIResponse(422, "Could not create or update file"))
-                }
+              case 422 => { Left(APIError.BadAPIResponse(422, message.getOrElse("Unknown error: Could not create or update file")))
+//                message match {
+//                  case Some("path contains a malformed path component") | Some("path cannot start with a slash") => Left(APIError.BadAPIResponse(422, "Invalid path"))
+//                  case Some("Invalid request.\n\n\"sha\" wasn't supplied.") => Left(APIError.BadAPIResponse(422, "File already exists"))
+//                  case _ => Left(APIError.BadAPIResponse(422, "Could not create or update file"))
+//                }
               }
-              case _ => Left(APIError.BadAPIResponse(400, "Could not create or update file"))
+              case _ => Left(APIError.BadAPIResponse(500, "Unknown error: Could not create or update file"))
             }
           }
         }
@@ -127,13 +135,13 @@ class GithubConnector @Inject()(ws: WSClient) {
               case 403 => Left(APIError.BadAPIResponse(403, "Authentication failed"))
               case 404 => Left(APIError.BadAPIResponse(404, "Not found")) // including if file doesn't exist
               case 409 => Left(APIError.BadAPIResponse(409, "sha does not match"))
-              case 422 => {
-                message match {
-                  case Some("path contains a malformed path component") | Some("path cannot start with a slash") => Left(APIError.BadAPIResponse(422, "Invalid path"))
-                  case _ => Left(APIError.BadAPIResponse(422, "Could not delete file"))
-                }
+              case 422 => { Left(APIError.BadAPIResponse(422, message.getOrElse("Unknown error: Could not delete file")))
+//                message match {
+//                  case Some("path contains a malformed path component") | Some("path cannot start with a slash") => Left(APIError.BadAPIResponse(422, "Invalid path"))
+//                  case _ => Left(APIError.BadAPIResponse(422, "Could not delete file"))
+//                }
               }
-              case _ => Left(APIError.BadAPIResponse(400, "Could not delete file"))
+              case _ => Left(APIError.BadAPIResponse(500, "Unknown error: Could not delete file"))
             }
           }
         }

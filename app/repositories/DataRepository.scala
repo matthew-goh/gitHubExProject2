@@ -5,12 +5,13 @@ import models.{APIError, UserModel}
 import org.mongodb.scala.bson.conversions.Bson
 import org.mongodb.scala.model.Filters.empty
 import org.mongodb.scala.model._
-import org.mongodb.scala.result
+import org.mongodb.scala.{MongoWriteException, result}
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 @Singleton
 class DataRepository @Inject()(mongoComponent: MongoComponent)
@@ -27,23 +28,27 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   replaceIndexes = false
 ) with DataRepositoryTrait {
 
+  // Note: Try is meant for synchronous code.
+  // For async operations (Future), use .recover or .recoverWith to handle exceptions.
+  // The resulting value of a future is wrapped in either a Success or Failure type, which is a type of Try.
+
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]  = {
-    try {
-      collection.find().toFuture().map{ users: Seq[UserModel] => Right(users) }
+    collection.find().toFuture().map{ users: Seq[UserModel] => Right(users) }
+      .recover{
+        case _ => Left(APIError.BadAPIResponse(404, "Database collection not found"))
+      }
     }
-    catch {
-      case e: Exception => Future(Left(APIError.BadAPIResponse(404, "Database not found")))
-    }
-  }
 
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
-    try {
-      collection.insertOne(user).toFuture()
-        .map(_ => Right(user))
-        .recover { case _ => Left(APIError.BadAPIResponse(500, "User already exists in database")) }
-    }
-    catch {
-      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to add user")))
+    collection.insertOne(user).toFuture().map { insertResult =>
+      if (insertResult.wasAcknowledged) {
+        Right(user)
+      } else {
+        Left(APIError.BadAPIResponse(500, "Error: Insertion not acknowledged"))
+      }
+    }.recover {
+      case e: MongoWriteException => Left(APIError.BadAPIResponse(500, "User already exists in database"))
+      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to add user: ${e.getMessage}"))
     }
   }
 
@@ -59,75 +64,93 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
 //    )
 
   def read(username: String): Future[Either[APIError, UserModel]] = {
-    try {
-      collection.find(byUsername(username)).headOption flatMap {
-        case Some(data) => Future(Right(data))
-        case None => Future(Left(APIError.BadAPIResponse(404, "User not found")))
-      }
-    }
-    catch {
-      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to search for user")))
+    collection.find(byUsername(username)).headOption.flatMap {
+      case Some(data) => Future(Right(data))
+      case None => Future(Left(APIError.BadAPIResponse(404, "User not found")))
+    }.recover {
+      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to search for user: ${e.getMessage}"))
     }
   }
 
   def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]] = {
-    try {
-      collection.replaceOne(
-        filter = byUsername(username),
-        replacement = user,
-        options = new ReplaceOptions().upsert(true) //What happens when we set this to false?
-      ).toFuture().map(result => Right(result))
-    }
-    catch {
-      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
+    collection.replaceOne(
+      filter = byUsername(username),
+      replacement = user,
+      options = new ReplaceOptions().upsert(false) // don't add to database if user doesn't exist
+    ).toFuture().map {
+      updateResult =>
+        if (updateResult.wasAcknowledged) {
+          updateResult.getMatchedCount match {
+            case 1 => Right(updateResult)
+            case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+            case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple documents with same username found"))
+          }
+        } else {
+          Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
+        }
+    }.recover {
+      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
     }
   }
-  // Right result is e.g. AcknowledgedUpdateResult{matchedCount=1, modifiedCount=1, upsertedId=null}
+  // updateResult is e.g. AcknowledgedUpdateResult{matchedCount=1, modifiedCount=1, upsertedId=null}
 
-  def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
+  private def isIntegerString(value: String): Boolean = value.forall(Character.isDigit)
+
+  // field
+  def updateWithValue(username: String, field: UserModelFields.Value, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
     field match {
-      case "location" =>
-        try {
-          collection.updateOne(Filters.equal("username", username), Updates.set(field, newValue)).toFuture().map{
-            updateResult =>
-              if (updateResult.getMatchedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
-              else Right(updateResult)
-          }
-        }
-        catch {
-          case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
-        }
-      case "numFollowers" | "numFollowing" =>
-        if(!newValue.forall(Character.isDigit)) {
-          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
-        } else {
-          try{
-            collection.updateOne(Filters.equal("username", username), Updates.set(field, newValue.toInt)).toFuture().map{
-              updateResult =>
-                if (updateResult.getMatchedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
-                else Right(updateResult)
+      case UserModelFields.location =>
+        collection.updateOne(Filters.equal("username", username), Updates.set("location", newValue)).toFuture().map{
+          updateResult =>
+            if (updateResult.wasAcknowledged) {
+              updateResult.getMatchedCount match {
+                case 1 => Right(updateResult)
+                case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+                case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
+              }
+            } else {
+              Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
             }
-          }
-          catch {
-            case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to update user")))
-          }
+        }.recover {
+          case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
         }
-      case _ => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
+      case UserModelFields.numFollowers | UserModelFields.numFollowing =>
+        if(isIntegerString(newValue)) {
+          collection.updateOne(Filters.equal("username", username), Updates.set(field.toString, newValue.toInt)).toFuture().map{
+            updateResult =>
+              if (updateResult.wasAcknowledged) {
+                updateResult.getMatchedCount match {
+                  case 1 => Right(updateResult)
+                  case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+                  case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
+                }
+              } else {
+                Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
+              }
+          }.recover {
+            case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
+          }
+        } else { // isIntegerString(newValue) == false
+          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
+        }
     }
   }
 
   def delete(username: String): Future[Either[APIError, result.DeleteResult]] = {
-    try {
-      collection.deleteOne(
-        filter = byUsername(username)
-      ).toFuture().map {
-        deleteResult =>
-          if (deleteResult.getDeletedCount == 0) Left(APIError.BadAPIResponse(404, "User not found"))
-          else Right(deleteResult)
+    collection.deleteOne(
+      filter = byUsername(username)
+    ).toFuture().map { deleteResult =>
+      if (deleteResult.wasAcknowledged) {
+        deleteResult.getDeletedCount match {
+          case 1 => Right(deleteResult)
+          case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+          case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users deleted"))
+        }
+      } else {
+        Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
       }
-    }
-    catch {
-      case e: Exception => Future(Left(APIError.BadAPIResponse(500, "Unable to delete user")))
+    }.recover {
+      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to delete user: ${e.getMessage}"))
     }
   }
 
@@ -142,6 +165,10 @@ trait DataRepositoryTrait {
   def read(username: String): Future[Either[APIError, UserModel]]
 //  def readBySpecifiedField(field: String, value: String): Future[Either[APIError, Seq[DataModel]]]
   def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]]
-  def updateWithValue(username: String, field: String, newValue: String): Future[Either[APIError, result.UpdateResult]]
+  def updateWithValue(username: String, field: UserModelFields.Value, newValue: String): Future[Either[APIError, result.UpdateResult]]
   def delete(username: String): Future[Either[APIError, result.DeleteResult]]
+}
+
+object UserModelFields extends Enumeration {
+  val location, numFollowers, numFollowing = Value
 }

@@ -32,6 +32,7 @@ class GithubService @Inject()(connector: GithubConnector) {
     connector.get[FileInfo](urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"))
   }
 
+  // path passed into these methods is the entire path to file, including file name
   def createGithubFile(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: CreateRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
     val encodedContent = Base64.getEncoder.encodeToString(body.fileContent.getBytes("UTF-8"))
     val requestBody = Json.obj(

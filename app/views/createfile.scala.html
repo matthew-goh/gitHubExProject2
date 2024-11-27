@@ -2,8 +2,7 @@
 @import helper._
 
 @*RequestHeader needed for form with CRSF, messages needed for specific form defined for a model*@
-@(username: String, repoName: String, folderPath: String, createForm: Form[CreateRequestBody],
-        extraMessage: String = "")(implicit request: RequestHeader, messages: Messages)
+@(username: String, repoName: String, folderPath: String, createForm: Form[CreateRequestBody])(implicit request: RequestHeader, messages: Messages)
 
 @main("Create File"){
   <div class="container mb-5">
@@ -11,16 +10,17 @@
     @if(folderPath != ""){
       <h3>In folder: @folderPath</h3>
     }
-    @if(extraMessage != ""){
-      <p class="error-text">@extraMessage</p>
-    }
+@*    @if(extraMessage != ""){*@
+@*      <p class="error-text">@extraMessage</p>*@
+@*    }*@
     @helper.form(action = routes.ApplicationController.createFormSubmit(username, repoName, folderPath)) {
       @helper.CSRF.formField
-      <p>
-        <label for="fileName">File name</label><br>
-        <input type="text" class="file-name-input" name="fileName" placeholder="Enter file name" size="35" required> <br>
-        <small class="input-note"> Required; Can optionally include a folder path, e.g. folder1/folder2/filename.txt </small>
-      </p>
+@*      <p>*@
+@*        <label for="fileName">File name</label><br>*@
+@*        <input type="text" class="file-name-input" name="fileName" placeholder="Enter file name" size="35" required> <br>*@
+@*        <small class="input-note"> Required; Can optionally include a folder path, e.g. folder1/folder2/filename.txt </small>*@
+@*      </p>*@
+      @helper.inputText(createForm("fileName"), Symbol("_label") -> "File name", Symbol("size") -> "35")
       @helper.inputText(createForm("commitMessage"), Symbol("_label") -> "Commit message", Symbol("size") -> "90")
       @helper.textarea(createForm("fileContent"), Symbol("_label") -> "File content", Symbol("rows") -> "10", Symbol("cols") -> "75")
       <input class="button-link" type="submit" value="Submit">

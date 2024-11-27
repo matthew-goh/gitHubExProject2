@@ -48,8 +48,11 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
   def searchUser(): Action[AnyContent] = Action.async {implicit request =>
     accessToken()
-    val username: String = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption)).get
-    Future.successful(Redirect(routes.ApplicationController.getUserDetails(username)))
+    val usernameSubmitted: Option[String] = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption))
+    usernameSubmitted match {
+      case None | Some("") => Future.successful(BadRequest(views.html.unsuccessful("No username provided")))
+      case Some(username) => Future.successful(Redirect(routes.ApplicationController.getUserDetails(username)))
+    }
   }
 
   def addUser(): Action[AnyContent] = Action.async {implicit request =>
@@ -61,7 +64,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         error.reason match {
           case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
           => BadRequest(views.html.unsuccessful("User already exists in database"))
-          case _ => BadRequest("Unable to add user.")
+          case _ => BadRequest(views.html.unsuccessful(error.reason))
         }
       }
     }
@@ -99,25 +102,22 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     // use flatMap and Future.successful() here so that the inner map returns the required Future[Result], not Future[Future[Result]]
     service.getRepoItems(username = username, repoName = repoName, path = path).value.flatMap {
       case Right(repoItemList) => Future.successful(Ok(views.html.foldercontents(repoItemList, username, repoName, path)))
-      case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: Not found" => Future.successful(NotFound(views.html.unsuccessful("Path not found")))
-        case _ => {
-          // if there is an error, the path should be a file
-          service.getFileInfo(username = username, repoName = repoName, path = path).value.map {
-            case Right(file) => {
+      case Left(error) => {
+        // if there is an error, see if the path is a file
+        service.getFileInfo(username = username, repoName = repoName, path = path).value.map {
+          case Right(file) => {
 //              val encodedLines = file.content.split("\n")
 //              val decodedLines = encodedLines.map(line => new String(Base64.getDecoder.decode(line)))
 //              val decodedContent = decodedLines.mkString("\n")
 //              val decodedContent = new String(Base64.getDecoder.decode(file.content.replaceAll("\n", "")))
-              Ok(views.html.filedetails(file, username, repoName))
-            }
-            case Left(error) => { error.reason match {
-              case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
-              case _ => BadRequest(views.html.unsuccessful("Could not connect"))
-            }}
+            Ok(views.html.filedetails(file, username, repoName))
+          }
+          case Left(error) => error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+            case _ => BadRequest(views.html.unsuccessful("Could not connect"))
           }
         }
-      }}
+      }
     }
   }
 
@@ -146,25 +146,17 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     accessToken()
     CreateRequestBody.createForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
-        Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, formWithErrors, extraMessage = "Please fill in all required fields")))
+        Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, formWithErrors)))
       },
       formData => {  // formData is a CreateRequestBody
-        val fileName: String = request.body.asFormUrlEncoded.flatMap(_.get("fileName").flatMap(_.headOption)).get
-        val fileNamePattern = "^([\\w\\s-]+/)*[\\w\\s-]+\\.[A-Za-z]{2,4}$".r
-        if (!fileNamePattern.matches(fileName)) {
-//          Future.successful(BadRequest(views.html.unsuccessful("Invalid file name")))
-          Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm.fill(formData), extraMessage = "Invalid file name")))
-        }
-        else {
-          val path: String = if (folderPath.isEmpty) fileName else s"$folderPath/$fileName"
-          service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
-            case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
-            case Left(error) => { error.reason match {
-              case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
-              case "Bad response from upstream; got status: 422, and got reason: File already exists" => BadRequest(views.html.unsuccessful("File already exists"))
-              case _ => BadRequest(views.html.unsuccessful(error.reason))
-            }}
-          }
+        val path: String = if (folderPath.isEmpty) formData.fileName else s"$folderPath/${formData.fileName}"
+        service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
+          case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
+          case Left(error) => { error.reason match {
+            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+            case "Bad response from upstream; got status: 422, and got reason: Invalid request.\n\n\"sha\" wasn't supplied." => BadRequest(views.html.unsuccessful("File already exists"))
+            case _ => BadRequest(views.html.unsuccessful(error.reason))
+          }}
         }
       }
     )
@@ -296,7 +288,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsSuccess(userModel, _) =>
         repoService.update(username, userModel).map{
           case Right(_) => Accepted {Json.toJson(request.body)}
-          case Left(error) => Status(error.httpResponseStatus)(error.reason)
+          case Left(error) => BadRequest {error.reason}
         } // dataRepository.update() is a Future[Either[APIError, result.UpdateResult]]
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }
