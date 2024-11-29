@@ -6,8 +6,6 @@ import play.api.mvc._
 import play.filters.csrf.CSRF
 import services.{GithubService, RepositoryService}
 
-import java.time.{Instant, ZoneId}
-import java.time.format.DateTimeFormatter
 import java.util.Base64
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
@@ -26,27 +24,27 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 //    zonedDateTime.format(formatter)
 //  }
 
-  def listAllUsers(): Action[AnyContent] = Action.async {implicit request =>
+  def listAllUsers(): Action[AnyContent] = Action.async {_ =>
     repoService.index().map{
       case Right(userList: Seq[UserModel]) => Ok(views.html.userlisting(userList))
-      case Left(error) => NotFound(views.html.unsuccessful("Unable to reach database"))
+      case Left(error) => NotFound(views.html.unsuccessful(error.reason))
     }
   }
 
-  def getUserDetails(username: String): Action[AnyContent] = Action.async {implicit request =>
+  def getUserDetails(username: String): Action[AnyContent] = Action.async { implicit request =>
     service.getGithubUser(username = username).value.map {
       case Right(user) => {
         val userModel = service.convertToUserModel(user)
         Ok(views.html.usersearch(userModel))
       }
-      case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User not found"))
-        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
-      }}
+      case Left(error) => error.reason match {
+        case "Bad response from upstream. Status: 404; Reason: Not found" => NotFound(views.html.unsuccessful("User not found"))
+        case _ => BadRequest(views.html.unsuccessful(error.reason))
+      }
     }
   }
 
-  def searchUser(): Action[AnyContent] = Action.async {implicit request =>
+  def searchUser(): Action[AnyContent] = Action.async { implicit request =>
     accessToken()
     val usernameSubmitted: Option[String] = request.body.asFormUrlEncoded.flatMap(_.get("username").flatMap(_.headOption))
     usernameSubmitted match {
@@ -55,54 +53,48 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
-  def addUser(): Action[AnyContent] = Action.async {implicit request =>
+  def addUser(): Action[AnyContent] = Action.async { implicit request =>
     accessToken()
-//    println(request.body.asFormUrlEncoded) // type is Option[Map[String, Seq[String]]]
+    // request.body.asFormUrlEncoded has type Option[Map[String, Seq[String]]]
     repoService.create(request.body.asFormUrlEncoded).map{
       case Right(_) => Ok(views.html.confirmation("User added"))
-      case Left(error) => {
-        error.reason match {
-          case "Bad response from upstream; got status: 500, and got reason: User already exists in database"
-          => BadRequest(views.html.unsuccessful("User already exists in database"))
-          case _ => BadRequest(views.html.unsuccessful(error.reason))
-        }
+      case Left(error) => BadRequest(views.html.unsuccessful(error.reason))
+    }
+  }
+
+  def deleteUser(username: String): Action[AnyContent] = Action.async { _ =>
+    repoService.delete(username).map{
+      case Right(_) => Ok(views.html.confirmation("User removed from database"))
+      case Left(error) => BadRequest(views.html.unsuccessful(error.reason))
+    }
+  }
+
+  def getUserRepos(username: String): Action[AnyContent] = Action.async { _ =>
+    service.getGithubRepos(username = username).value.map {
+      case Right(repoList) => Ok(views.html.userrepos(repoList, username))
+      case Left(error) => error.reason match {
+        case "Bad response from upstream. Status: 404; Reason: Not found" => NotFound(views.html.unsuccessful("User not found"))
+        case _ => BadRequest(views.html.unsuccessful(error.reason))
       }
     }
   }
 
-  def deleteUser(username: String): Action[AnyContent] = Action.async { implicit request =>
-    repoService.delete(username).map{
-      case Right(_) => Ok(views.html.confirmation("User removed"))
-      case Left(error) => BadRequest(views.html.unsuccessful("User not found in database"))
-    }
-  }
-
-  def getUserRepos(username: String): Action[AnyContent] = Action.async {implicit request =>
-    service.getGithubRepos(username = username).value.map {
-      case Right(repoList) => Ok(views.html.userrepos(repoList, username))
-      case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User not found"))
-        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
-      }}
-    }
-  }
-
-  def getRepoItems(username: String, repoName: String): Action[AnyContent] = Action.async {implicit request =>
+  def getRepoItems(username: String, repoName: String): Action[AnyContent] = Action.async { _ =>
     service.getRepoItems(username = username, repoName = repoName).value.map {
       case Right(repoItemList) => Ok(views.html.repoitems(repoItemList, username, repoName))
-      case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("User or repository not found"))
-        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
-      }}
+      case Left(error) => error.reason match {
+        case "Bad response from upstream. Status: 404; Reason: Not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+        case _ => BadRequest(views.html.unsuccessful(error.reason))
+      }
     }
   }
 
-  def getFromPath(username: String, repoName: String, path: String): Action[AnyContent] = Action.async {implicit request =>
+  def getFromPath(username: String, repoName: String, path: String): Action[AnyContent] = Action.async { _ =>
     // first try getRepoItems to see if the path is a folder
     // use flatMap and Future.successful() here so that the inner map returns the required Future[Result], not Future[Future[Result]]
     service.getRepoItems(username = username, repoName = repoName, path = path).value.flatMap {
       case Right(repoItemList) => Future.successful(Ok(views.html.foldercontents(repoItemList, username, repoName, path)))
-      case Left(error) => {
+      case Left(_) => {
         // if there is an error, see if the path is a file
         service.getFileInfo(username = username, repoName = repoName, path = path).value.map {
           case Right(file) => {
@@ -113,8 +105,8 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
             Ok(views.html.filedetails(file, username, repoName))
           }
           case Left(error) => error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
-            case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+            case "Bad response from upstream. Status: 404; Reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+            case _ => BadRequest(views.html.unsuccessful(error.reason))
           }
         }
       }
@@ -129,10 +121,10 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsSuccess(requestBody, _) =>
         service.createGithubFile(username = username, repoName = repoName, path = path, body = requestBody).value.map{
           case Right(response) => Created {response}
-          case Left(error) => { error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound {"User or repository not found"}
+          case Left(error) => error.httpResponseStatus match {
+            case 404 => NotFound {error.reason}
             case _ => BadRequest {error.reason}
-          }}
+          }
         }
       case JsError(_) => Future.successful(BadRequest {"Invalid request body"})
     }
@@ -142,7 +134,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   def showCreateForm(username: String, repoName: String, folderPath: Option[String]): Action[AnyContent] = Action.async { implicit request =>
     Future.successful(Ok(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm)))
   }
-  def createFormSubmit(username: String, repoName: String, folderPath: Option[String]): Action[AnyContent] =  Action.async {implicit request =>
+  def createFormSubmit(username: String, repoName: String, folderPath: Option[String]): Action[AnyContent] =  Action.async { implicit request =>
     accessToken()
     CreateRequestBody.createForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
@@ -154,12 +146,12 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
           case Some(folder) => s"$folder/${formData.fileName}"
         } //if (folderPath.isEmpty) formData.fileName else s"$folderPath/${formData.fileName}"
         service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
-          case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
-          case Left(error) => { error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
-            case "Bad response from upstream; got status: 422, and got reason: Invalid request.\n\n\"sha\" wasn't supplied." => BadRequest(views.html.unsuccessful("File already exists"))
+          case Right(_) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
+          case Left(error) => error.reason match {
+            case "Bad response from upstream. Status: 404; Reason: User or repository not found" => NotFound(views.html.unsuccessful(error.reason))
+            case "Bad response from upstream. Status: 422; Reason: Invalid request.\n\n\"sha\" wasn't supplied." => BadRequest(views.html.unsuccessful("File already exists"))
             case _ => BadRequest(views.html.unsuccessful(error.reason))
-          }}
+          }
         }
       }
     )
@@ -171,10 +163,10 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsSuccess(requestBody, _) =>
         service.updateGithubFile(username = username, repoName = repoName, path = path, body = requestBody).value.map{
           case Right(response) => Ok {response}
-          case Left(error) => { error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound {"User or repository not found"}
+          case Left(error) => error.httpResponseStatus match {
+            case 404 => NotFound {error.reason}
             case _ => BadRequest {error.reason}
-          }}
+          }
         }
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }
@@ -188,13 +180,13 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         val formWithDetails = UpdateRequestBody.updateForm.fill(UpdateRequestBody(commitMessage = "", newFileContent = decodedContent, fileSHA = file.sha))
         Ok(views.html.updatefile(username, repoName, filePath, formWithDetails))
       }
-      case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
-        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
-      }}
+      case Left(error) => error.reason match {
+        case "Bad response from upstream. Status: 404; Reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+        case _ => BadRequest(views.html.unsuccessful(error.reason))
+      }
     }
   }
-  def updateFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
+  def updateFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async { implicit request =>
     accessToken()
     UpdateRequestBody.updateForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
@@ -202,11 +194,11 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       },
       formData => {  // formData is an UpdateRequestBody
         service.processRequestFromForm(username = username, repoName = repoName, path = filePath, body = formData).value.map{
-          case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, filePath))
-          case Left(error) => { error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: User or repository not found" => NotFound(views.html.unsuccessful("User or repository not found"))
+          case Right(_) => Redirect(routes.ApplicationController.getFromPath(username, repoName, filePath))
+          case Left(error) => error.httpResponseStatus match {
+            case 404 => NotFound(views.html.unsuccessful(error.reason))
             case _ => BadRequest(views.html.unsuccessful(error.reason))
-          }}
+          }
         }
       }
     )
@@ -218,10 +210,10 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsSuccess(requestBody, _) =>
         service.deleteGithubFile(username = username, repoName = repoName, path = path, body = requestBody).value.map{
           case Right(response) => Ok {response}
-          case Left(error) => { error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound {"Not found"}
+          case Left(error) => error.httpResponseStatus match {
+            case 404 => NotFound {error.reason}
             case _ => BadRequest {error.reason}
-          }}
+          }
         }
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }
@@ -235,12 +227,12 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         Ok(views.html.deletefile(username, repoName, filePath, formWithDetails))
       }
       case Left(error) => { error.reason match {
-        case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
-        case _ => BadRequest(views.html.unsuccessful("Could not connect"))
+        case "Bad response from upstream. Status: 404; Reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+        case _ => BadRequest(views.html.unsuccessful(error.reason))
       }}
     }
   }
-  def deleteFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async {implicit request =>
+  def deleteFormSubmit(username: String, repoName: String, filePath: String): Action[AnyContent] =  Action.async { implicit request =>
     accessToken()
     DeleteRequestBody.deleteForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
@@ -248,11 +240,11 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       },
       formData => {  // formData is a DeleteRequestBody
         service.processRequestFromForm(username = username, repoName = repoName, path = filePath, body = formData).value.map{
-          case Right(response) => Ok(views.html.confirmation("File deleted"))
-          case Left(error) => { error.reason match {
-            case "Bad response from upstream; got status: 404, and got reason: Not found" => NotFound(views.html.unsuccessful("Path not found"))
+          case Right(_) => Ok(views.html.confirmation("File deleted"))
+          case Left(error) => error.httpResponseStatus match {
+            case 404 => NotFound(views.html.unsuccessful(error.reason))
             case _ => BadRequest(views.html.unsuccessful(error.reason))
-          }}
+          }
         }
       }
     )
@@ -260,7 +252,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
 
 
   ///// REPOSITORY API METHODS WITHOUT FRONTEND /////
-  def index(): Action[AnyContent] = Action.async { implicit request =>
+  def index(): Action[AnyContent] = Action.async { _ =>
     repoService.index().map{ // dataRepository.index() is a Future[Either[APIError.BadAPIResponse, Seq[DataModel]]]
       case Right(item: Seq[UserModel]) => Ok {Json.toJson(item)}
       case Left(error) => Status(error.httpResponseStatus)(error.reason)
@@ -279,7 +271,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
-  def read(username: String): Action[AnyContent] = Action.async { implicit request =>
+  def read(username: String): Action[AnyContent] = Action.async { _ =>
     repoService.read(username).map{ // dataRepository.read() is a Future[Either[APIError, DataModel]]
       case Right(item) => Ok {Json.toJson(item)}
       case Left(error) => NotFound {error.reason}
@@ -296,14 +288,14 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsError(_) => Future(BadRequest {"Invalid request body"})
     }
   }
-  def updateWithValue(username: String, field: String, newValue: String): Action[AnyContent] = Action.async { implicit request =>
+  def updateWithValue(username: String, field: String, newValue: String): Action[AnyContent] = Action.async { _ =>
     repoService.updateWithValue(username, field, newValue).map{
       case Right(_) => Accepted {s"$field of user $username has been updated to: $newValue"}
       case Left(error) => BadRequest {error.reason}
     }
   }
 
-  def delete(username: String): Action[AnyContent] = Action.async { implicit request =>
+  def delete(username: String): Action[AnyContent] = Action.async { _ =>
     repoService.delete(username).map{
       case Right(_) => Accepted {s"$username has been deleted from the database"}
       case Left(error) => BadRequest {error.reason}

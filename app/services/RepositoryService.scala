@@ -63,7 +63,7 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
     val fieldTry: Try[UserModelFields.Value] = Try(UserModelFields.withName(field))
     fieldTry match {
       case Success(fieldName) => repositoryTrait.updateWithValue(username, fieldName, newValue)
-      case Failure(e) => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
+      case Failure(_) => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
     }
   }
 

@@ -4,7 +4,7 @@ import baseSpec.BaseSpecWithApplication
 import com.github.tomakehurst.wiremock.client.WireMock._
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration
-import models.{APIError, FileInfo, GithubRepo, RepoItem, User, UserModel}
+import models.{APIError, RepoItem, User}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import play.api.libs.json.Json
@@ -388,7 +388,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
           "message" -> "Test delete",
           "sha" -> "4753fddcf141a3798b6aed0e81f56c7f14535ed7"
         )).value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Path not found"))
       }
     }
 
