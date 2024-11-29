@@ -342,7 +342,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "commitMessage" -> "Test commit",
         "fileContent" -> "Test file content"
       )
-      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "folder1")(createFileRequest)
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = Some("folder1"))(createFileRequest)
       status(createFileResult) shouldBe Status.SEE_OTHER
       redirectLocation(createFileResult) shouldBe Some("/github/users/matthew-goh/repos/test-repo/folder1/folder2/testfile.txt")
     }
@@ -353,7 +353,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "commitMessage" -> "",
         "fileContent" -> "text"
       )
-      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(createFileResult) should include ("testfile.txt")
     }
@@ -364,7 +364,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "commitMessage" -> "Test commit",
         "fileContent" -> "text"
       )
-      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(createFileResult) should include ("invalid//file")
     }
@@ -380,7 +380,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "commitMessage" -> "Test commit",
         "fileContent" -> "Test file content"
       )
-      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", "")(createFileRequest)
+      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(createFileResult) should include ("File already exists")
     }

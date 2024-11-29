@@ -2,12 +2,12 @@
 @import helper._
 
 @*RequestHeader needed for form with CRSF, messages needed for specific form defined for a model*@
-@(username: String, repoName: String, folderPath: String, createForm: Form[CreateRequestBody])(implicit request: RequestHeader, messages: Messages)
+@(username: String, repoName: String, folderPath: Option[String], createForm: Form[CreateRequestBody])(implicit request: RequestHeader, messages: Messages)
 
 @main("Create File"){
   <div class="container mb-5">
     <h2>Create a file in @repoName by @username</h2>
-    @if(folderPath != ""){
+    @if(folderPath.isDefined){
       <h3>In folder: @folderPath</h3>
     }
 @*    @if(extraMessage != ""){*@
@@ -26,8 +26,8 @@
       <input class="button-link" type="submit" value="Submit">
     }
     <br>
-    @if(folderPath != ""){
-      <p><a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, folderPath)">
+    @if(folderPath.isDefined){
+      <p><a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, folderPath.getOrElse(""))">
         <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
         Back to Folder
       </a></p>

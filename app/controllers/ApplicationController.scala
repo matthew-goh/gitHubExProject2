@@ -139,17 +139,20 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   }
 
   // create - using form
-  def showCreateForm(username: String, repoName: String, folderPath: String): Action[AnyContent] = Action.async { implicit request =>
+  def showCreateForm(username: String, repoName: String, folderPath: Option[String]): Action[AnyContent] = Action.async { implicit request =>
     Future.successful(Ok(views.html.createfile(username, repoName, folderPath, CreateRequestBody.createForm)))
   }
-  def createFormSubmit(username: String, repoName: String, folderPath: String): Action[AnyContent] =  Action.async {implicit request =>
+  def createFormSubmit(username: String, repoName: String, folderPath: Option[String]): Action[AnyContent] =  Action.async {implicit request =>
     accessToken()
     CreateRequestBody.createForm.bindFromRequest().fold( //from the implicit request we want to bind this to the form in our companion object
       formWithErrors => {
         Future.successful(BadRequest(views.html.createfile(username, repoName, folderPath, formWithErrors)))
       },
       formData => {  // formData is a CreateRequestBody
-        val path: String = if (folderPath.isEmpty) formData.fileName else s"$folderPath/${formData.fileName}"
+        val path: String = folderPath match {
+          case None => formData.fileName
+          case Some(folder) => s"$folder/${formData.fileName}"
+        } //if (folderPath.isEmpty) formData.fileName else s"$folderPath/${formData.fileName}"
         service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
           case Right(response) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
           case Left(error) => { error.reason match {

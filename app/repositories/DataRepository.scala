@@ -37,7 +37,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       .recover{
         case _ => Left(APIError.BadAPIResponse(404, "Database collection not found"))
       }
-    }
+  }
 
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
     collection.insertOne(user).toFuture().map { insertResult =>
@@ -83,7 +83,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
           updateResult.getMatchedCount match {
             case 1 => Right(updateResult)
             case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
-            case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple documents with same username found"))
+            case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
           }
         } else {
           Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
