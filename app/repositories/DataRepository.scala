@@ -123,7 +123,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
             case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
           }
         } else { // isIntegerString(newValue) == false
-          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
+          Future.successful(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
         }
     }
   }
@@ -147,7 +147,21 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   }
 
   // remove all data from Mongo with the same collection name
-  def deleteAll(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
+  def deleteAll(): Future[Either[APIError, result.DeleteResult]] = {
+    collection.deleteMany(empty()).toFuture().map{ deleteResult =>
+      if (deleteResult.wasAcknowledged) {
+        deleteResult.getDeletedCount match {
+          case 0 => Left(APIError.BadAPIResponse(404, "No users found in database"))
+          case _ => Right(deleteResult)
+        }
+      } else {
+        Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
+      }
+    }.recover {
+      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to delete all users: ${e.getMessage}"))
+    }
+  }
+  def deleteAllForTesting(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
 }
 
 @ImplementedBy(classOf[DataRepository])
@@ -158,6 +172,7 @@ trait DataRepositoryTrait {
   def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]]
   def updateWithValue(username: String, field: UserModelFields.Value, newValue: String): Future[Either[APIError, result.UpdateResult]]
   def delete(username: String): Future[Either[APIError, result.DeleteResult]]
+  def deleteAll(): Future[Either[APIError, result.DeleteResult]]
 }
 
 object UserModelFields extends Enumeration {

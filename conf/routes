@@ -11,6 +11,7 @@ GET     /github/users/:username     controllers.ApplicationController.getUserDet
 POST     /searchuser     controllers.ApplicationController.searchUser()
 POST     /github/users/add     controllers.ApplicationController.addUser()
 GET     /delete/:username     controllers.ApplicationController.deleteUser(username: String)
+GET     /test-only/deleteallusers     controllers.ApplicationController.deleteAll()
 
 # https://api.github.com/users/matthew-goh/repos
 GET     /github/users/:username/repos     controllers.ApplicationController.getUserRepos(username: String)

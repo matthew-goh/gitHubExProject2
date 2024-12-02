@@ -153,7 +153,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       )
       val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
       status(addUserResult) shouldBe Status.BAD_REQUEST
-      contentAsString(addUserResult) should include ("Bad response from upstream. Status: 500; Reason: User already exists in database")
+      contentAsString(addUserResult) should include ("Bad response from upstream: User already exists in database")
       afterEach()
     }
   }
@@ -173,7 +173,37 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       beforeEach()
       val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
       status(deleteResult) shouldBe Status.BAD_REQUEST
-      contentAsString(deleteResult) should include ("Bad response from upstream. Status: 404; Reason: User not found in database")
+      contentAsString(deleteResult) should include ("Bad response from upstream: User not found in database")
+      afterEach()
+    }
+  }
+
+  "ApplicationController .deleteAll() (test-only method)" should {
+    "delete all users in the database" in {
+      beforeEach()
+      val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
+      val createdResult: Future[Result] = TestApplicationController.create()(request)
+
+      val request2: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel2))
+      val createdResult2: Future[Result] = TestApplicationController.create()(request2)
+
+      Thread.sleep(100)
+      val deleteResult: Future[Result] = TestApplicationController.deleteAll()(FakeRequest())
+      status(deleteResult) shouldBe Status.OK
+      contentAsString(deleteResult) should include ("All users removed from database successfully!")
+
+      // check that database is now empty
+      val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
+      status(indexResult) shouldBe Status.OK
+      contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
+      afterEach()
+    }
+
+    "return a NotFound if there are no users in the database" in {
+      beforeEach()
+      val deleteResult: Future[Result] = TestApplicationController.deleteAll()(FakeRequest())
+      status(deleteResult) shouldBe Status.NOT_FOUND
+      contentAsString(deleteResult) should include ("No users to delete. Action completed successfully!")
       afterEach()
     }
   }
@@ -305,7 +335,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/create/matthew-goh/repos/abc/testfile.txt").withBody[JsValue](Json.toJson(body))
       val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "abc", "testfile.txt")(request)
       status(createFileResult) shouldBe Status.NOT_FOUND
-      contentAsString(createFileResult) shouldBe "Bad response from upstream. Status: 404; Reason: User or repository not found"
+      contentAsString(createFileResult) shouldBe "Bad response from upstream: User or repository not found"
     }
 
     "return a BadRequest if another API error occurred" in {
@@ -317,7 +347,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt").withBody[JsValue](Json.toJson(body))
       val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "test-repo", "invalid//testfile.txt")(request)
       status(createFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(createFileResult) shouldBe "Bad response from upstream. Status: 422; Reason: path contains a malformed path component"
+      contentAsString(createFileResult) shouldBe "Bad response from upstream: path contains a malformed path component"
     }
 
     "return a BadRequest if the request body could not be parsed into a CreatedRequestBody" in {
@@ -410,7 +440,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/update/matthew-goh/repos/abc/testfile.txt").withBody[JsValue](Json.toJson(body))
       val updateFileResult: Future[Result] = TestApplicationController.updateFile("matthew-goh", "abc", "testfile.txt")(request)
       status(updateFileResult) shouldBe Status.NOT_FOUND
-      contentAsString(updateFileResult) shouldBe "Bad response from upstream. Status: 404; Reason: User or repository not found"
+      contentAsString(updateFileResult) shouldBe "Bad response from upstream: User or repository not found"
     }
 
     "return a BadRequest if another API error occurred" in {
@@ -422,7 +452,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/update/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
       val updateFileResult: Future[Result] = TestApplicationController.updateFile("matthew-goh", "test-repo", "testfile.txt")(request)
       status(updateFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(updateFileResult) shouldBe "Bad response from upstream. Status: 409; Reason: sha does not match"
+      contentAsString(updateFileResult) shouldBe "Bad response from upstream: sha does not match"
     }
 
     "return a BadRequest if the request body could not be parsed into an UpdateRequestBody" in {
@@ -477,7 +507,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       )
       val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
       status(updateFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(updateFileResult) should include ("Bad response from upstream. Status: 403; Reason: Authentication failed")
+      contentAsString(updateFileResult) should include ("Bad response from upstream: Authentication failed")
     }
   }
 
@@ -505,7 +535,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/abc/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("abc", "test-repo", "testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.NOT_FOUND
-      contentAsString(deleteFileResult) shouldBe "Bad response from upstream. Status: 404; Reason: Not found"
+      contentAsString(deleteFileResult) shouldBe "Bad response from upstream: Not found"
     }
 
     "return a BadRequest if another API error occurred" in {
@@ -517,7 +547,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo//testfile.txt").withBody[JsValue](Json.toJson(body))
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "/testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(deleteFileResult) shouldBe "Bad response from upstream. Status: 422; Reason: path cannot start with a slash"
+      contentAsString(deleteFileResult) shouldBe "Bad response from upstream: path cannot start with a slash"
     }
 
     "return a BadRequest if the request body could not be parsed into a DeleteRequestBody" in {
@@ -569,7 +599,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       )
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "abc.txt")(deleteFileRequest)
       status(deleteFileResult) shouldBe Status.NOT_FOUND
-      contentAsString(deleteFileResult) should include ("Bad response from upstream. Status: 404; Reason: Path not found")
+      contentAsString(deleteFileResult) should include ("Bad response from upstream: Path not found")
     }
   }
 
@@ -610,7 +640,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val duplicateRequest: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val duplicateResult: Future[Result] = TestApplicationController.create()(duplicateRequest)
       status(duplicateResult) shouldBe Status.BAD_REQUEST
-      contentAsString(duplicateResult) shouldBe "Bad response from upstream. Status: 500; Reason: User already exists in database"
+      contentAsString(duplicateResult) shouldBe "Bad response from upstream: User already exists in database"
       afterEach()
     }
 
@@ -642,7 +672,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       beforeEach()
       val readResult: Future[Result] = TestApplicationController.read("aaaa")(FakeRequest())
       status(readResult) shouldBe NOT_FOUND
-      contentAsString(readResult) shouldBe "Bad response from upstream. Status: 404; Reason: User not found in database"
+      contentAsString(readResult) shouldBe "Bad response from upstream: User not found in database"
       afterEach()
     }
   }
@@ -677,7 +707,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val updateRequest: FakeRequest[JsValue] = testRequest.buildPut("/api/${userModel.username}").withBody[JsValue](Json.toJson(newUserModel))
       val updateResult = TestApplicationController.update("user1")(updateRequest)
       status(updateResult) shouldBe Status.BAD_REQUEST
-      contentAsString(updateResult) shouldBe "Bad response from upstream. Status: 404; Reason: User not found in database"
+      contentAsString(updateResult) shouldBe "Bad response from upstream: User not found in database"
 
       // check that database is still empty
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
@@ -717,7 +747,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("user1", "bad", "qqq")(FakeRequest())
       status(readResult) shouldBe Status.BAD_REQUEST
-      contentAsString(readResult) shouldBe "Bad response from upstream. Status: 500; Reason: Invalid field to update"
+      contentAsString(readResult) shouldBe "Bad response from upstream: Invalid field to update"
       afterEach()
     }
 
@@ -728,7 +758,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("user1", "numFollowing", "x5")(FakeRequest())
       status(readResult) shouldBe Status.BAD_REQUEST
-      contentAsString(readResult) shouldBe "Bad response from upstream. Status: 500; Reason: New value must be an integer"
+      contentAsString(readResult) shouldBe "Bad response from upstream: New value must be an integer"
       afterEach()
     }
 
@@ -739,7 +769,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("aaaa", "numFollowers", "1")(FakeRequest())
       status(readResult) shouldBe Status.BAD_REQUEST
-      contentAsString(readResult) shouldBe "Bad response from upstream. Status: 404; Reason: User not found in database"
+      contentAsString(readResult) shouldBe "Bad response from upstream: User not found in database"
       afterEach()
     }
   }
@@ -765,11 +795,11 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       beforeEach()
       val deleteResult: Future[Result] = TestApplicationController.delete("user1")(FakeRequest())
       status(deleteResult) shouldBe Status.BAD_REQUEST
-      contentAsString(deleteResult) shouldBe "Bad response from upstream. Status: 404; Reason: User not found in database"
+      contentAsString(deleteResult) shouldBe "Bad response from upstream: User not found in database"
       afterEach()
     }
   }
 
-  override def beforeEach(): Unit = await(repository.deleteAll())
-  override def afterEach(): Unit = await(repository.deleteAll())
+  override def beforeEach(): Unit = await(repository.deleteAllForTesting())
+  override def afterEach(): Unit = await(repository.deleteAllForTesting())
 }

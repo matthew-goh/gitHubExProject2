@@ -6,11 +6,10 @@ import repositories.{DataRepositoryTrait, UserModelFields}
 
 import java.time.Instant
 import javax.inject._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
-                                 (implicit ec: ExecutionContext){
+class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
 
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]] = {
     repositoryTrait.index()
@@ -47,7 +46,7 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
         val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
         repositoryTrait.create(user)
       }
-      case Left(errorText) => Future(Left(APIError.BadAPIResponse(400, errorText)))
+      case Left(errorText) => Future.successful(Left(APIError.BadAPIResponse(400, errorText)))
     }
   }
 
@@ -63,11 +62,16 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait)
     val fieldTry: Try[UserModelFields.Value] = Try(UserModelFields.withName(field))
     fieldTry match {
       case Success(fieldName) => repositoryTrait.updateWithValue(username, fieldName, newValue)
-      case Failure(_) => Future(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
+      case Failure(_) => Future.successful(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
     }
   }
 
   def delete(username: String): Future[Either[APIError, result.DeleteResult]] = {
     repositoryTrait.delete(username)
+  }
+
+  // test-only
+  def deleteAll(): Future[Either[APIError, result.DeleteResult]] = {
+    repositoryTrait.deleteAll()
   }
 }

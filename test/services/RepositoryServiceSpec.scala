@@ -259,4 +259,28 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
       }
     }
   }
+
+  "deleteAll (test-only method)" should {
+    "return a DeleteResult" in {
+      (mockRepoTrait.deleteAll _)
+        .expects()
+        .returning(Future(Right(testDeleteResult)))
+        .once()
+
+      whenReady(testRepoService.deleteAll()) { result =>
+        result shouldBe Right(testDeleteResult)
+      }
+    }
+
+    "return an error" in {
+      (mockRepoTrait.deleteAll _)
+        .expects()
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Unable to delete all users"))))
+        .once()
+
+      whenReady(testRepoService.deleteAll()) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Unable to delete all users"))
+      }
+    }
+  }
 }
