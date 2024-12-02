@@ -50,7 +50,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   ///// METHODS CALLED BY FRONTEND /////
   "ApplicationController .listAllUsers()" should {
     "list all users in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
       val request2: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel2))
@@ -60,15 +59,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       status(listingResult) shouldBe Status.OK
       contentAsString(listingResult) should include ("user1")
       contentAsString(listingResult) should include ("Account created: 07 Nov 2022 09:42")
-      afterEach()
     }
 
     "show 'no users found' if the database is empty" in {
-      beforeEach()
       val listingResult: Future[Result] = TestApplicationController.listAllUsers()(FakeRequest())
       status(listingResult) shouldBe Status.OK
       contentAsString(listingResult) should include ("No users found")
-      afterEach()
     }
   }
 
@@ -125,7 +121,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
   "ApplicationController .addUser()" should {
     "add a user to the database" in {
-      beforeEach()
       val addUserRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/add").withFormUrlEncodedBody(
         "username" -> "user1",
         "location" -> "",
@@ -136,11 +131,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
       status(addUserResult) shouldBe Status.OK
       contentAsString(addUserResult) should include ("User added successfully!")
-      afterEach()
     }
 
     "return a BadRequest if the user is already in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -154,13 +147,11 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
       status(addUserResult) shouldBe Status.BAD_REQUEST
       contentAsString(addUserResult) should include ("Bad response from upstream: User already exists in database")
-      afterEach()
     }
   }
 
   "ApplicationController .deleteUser()" should {
     "delete a user from the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -170,17 +161,14 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a BadRequest if the user could not be found" in {
-      beforeEach()
       val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
       status(deleteResult) shouldBe Status.BAD_REQUEST
       contentAsString(deleteResult) should include ("Bad response from upstream: User not found in database")
-      afterEach()
     }
   }
 
   "ApplicationController .deleteAll() (test-only method)" should {
     "delete all users in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -196,15 +184,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
       status(indexResult) shouldBe Status.OK
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
-      afterEach()
     }
 
     "return a NotFound if there are no users in the database" in {
-      beforeEach()
       val deleteResult: Future[Result] = TestApplicationController.deleteAll()(FakeRequest())
       status(deleteResult) shouldBe Status.NOT_FOUND
       contentAsString(deleteResult) should include ("No users to delete. Action completed successfully!")
-      afterEach()
     }
   }
 
@@ -607,7 +592,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   ///// API METHODS WITHOUT FRONTEND /////
   "ApplicationController .index()" should {
     "list all users in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -615,25 +599,18 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
       status(indexResult) shouldBe Status.OK
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq(userModel)
-      afterEach()
     }
   }
 
   "ApplicationController .create()" should {
     "create a user in the database" in {
-      beforeEach()
-      val x = Json.toJson(userModel)
-      println(x)
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
-
       val createdResult: Future[Result] = TestApplicationController.create()(request)
       status(createdResult) shouldBe Status.CREATED
       contentAsJson(createdResult).as[UserModel] shouldBe userModel
-      afterEach()
     }
 
     "return a BadRequest if the user is already in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -641,22 +618,18 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val duplicateResult: Future[Result] = TestApplicationController.create()(duplicateRequest)
       status(duplicateResult) shouldBe Status.BAD_REQUEST
       contentAsString(duplicateResult) shouldBe "Bad response from upstream: User already exists in database"
-      afterEach()
     }
 
     "return a BadRequest if the request body could not be parsed into a DataModel" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson("abcd"))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
       status(createdResult) shouldBe Status.BAD_REQUEST
       contentAsString(createdResult) shouldBe "Invalid request body"
-      afterEach()
     }
   }
 
   "ApplicationController .read()" should {
     "find a user in the database by username" in {
-      beforeEach()
       // need to use .create before we can find something in our repository
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
@@ -665,21 +638,17 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val readResult: Future[Result] = TestApplicationController.read("user1")(FakeRequest())
       status(readResult) shouldBe Status.OK
       contentAsJson(readResult).as[UserModel] shouldBe userModel
-      afterEach()
     }
 
     "return a NotFound if the user could not be found" in {
-      beforeEach()
       val readResult: Future[Result] = TestApplicationController.read("aaaa")(FakeRequest())
       status(readResult) shouldBe NOT_FOUND
       contentAsString(readResult) shouldBe "Bad response from upstream: User not found in database"
-      afterEach()
     }
   }
 
   "ApplicationController .update()" should {
     "update a user in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -687,11 +656,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val updateResult = TestApplicationController.update("user1")(updateRequest)
       status(updateResult) shouldBe Status.ACCEPTED
       contentAsJson(updateResult).as[UserModel] shouldBe newUserModel
-      afterEach()
     }
 
     "return a BadRequest if the if the request body could not be parsed into a DataModel" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -699,11 +666,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val badUpdateResult = TestApplicationController.update("user1")(badUpdateRequest)
       status(badUpdateResult) shouldBe Status.BAD_REQUEST
       contentAsString(badUpdateResult) shouldBe "Invalid request body"
-      afterEach()
     }
 
     "return a BadRequest if the user could not be found" in { // upsert(false)
-      beforeEach()
       val updateRequest: FakeRequest[JsValue] = testRequest.buildPut("/api/${userModel.username}").withBody[JsValue](Json.toJson(newUserModel))
       val updateResult = TestApplicationController.update("user1")(updateRequest)
       status(updateResult) shouldBe Status.BAD_REQUEST
@@ -713,70 +678,58 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
       status(indexResult) shouldBe Status.OK
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
-      afterEach()
     }
   }
 
   "ApplicationController .updateWithValue()" should {
     "update a user's location in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val updateResult = TestApplicationController.updateWithValue("user1", "location", "London")(FakeRequest())
       status(updateResult) shouldBe Status.ACCEPTED
       contentAsString(updateResult) shouldBe "location of user user1 has been updated to: London"
-      afterEach()
     }
 
     "update a user's number of followers in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val updateResult = TestApplicationController.updateWithValue("user1", "numFollowers", "20")(FakeRequest())
       status(updateResult) shouldBe Status.ACCEPTED
       contentAsString(updateResult) shouldBe "numFollowers of user user1 has been updated to: 20"
-      afterEach()
     }
 
     "return a BadRequest if an invalid field is specified" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("user1", "bad", "qqq")(FakeRequest())
       status(readResult) shouldBe Status.BAD_REQUEST
       contentAsString(readResult) shouldBe "Bad response from upstream: Invalid field to update"
-      afterEach()
     }
 
     "return a BadRequest if number following is updated with a non-integer value" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("user1", "numFollowing", "x5")(FakeRequest())
       status(readResult) shouldBe Status.BAD_REQUEST
       contentAsString(readResult) shouldBe "Bad response from upstream: New value must be an integer"
-      afterEach()
     }
 
     "return a BadRequest if the user does not exist in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("aaaa", "numFollowers", "1")(FakeRequest())
       status(readResult) shouldBe Status.BAD_REQUEST
       contentAsString(readResult) shouldBe "Bad response from upstream: User not found in database"
-      afterEach()
     }
   }
 
   "ApplicationController .delete()" should {
     "delete a user in the database" in {
-      beforeEach()
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -788,15 +741,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
       status(indexResult) shouldBe Status.OK
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
-      afterEach()
     }
 
     "return a BadRequest if the user could not be found" in {
-      beforeEach()
       val deleteResult: Future[Result] = TestApplicationController.delete("user1")(FakeRequest())
       status(deleteResult) shouldBe Status.BAD_REQUEST
       contentAsString(deleteResult) shouldBe "Bad response from upstream: User not found in database"
-      afterEach()
     }
   }
 
