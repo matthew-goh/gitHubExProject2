@@ -11,6 +11,7 @@ GET     /github/users/:username     controllers.ApplicationController.getUserDet
 POST     /searchuser     controllers.ApplicationController.searchUser()
 POST     /github/users/add     controllers.ApplicationController.addUser()
 GET     /delete/:username     controllers.ApplicationController.deleteUser(username: String)
+GET     /test-only/deleteallusers     controllers.ApplicationController.deleteAll()
 
 # https://api.github.com/users/matthew-goh/repos
 GET     /github/users/:username/repos     controllers.ApplicationController.getUserRepos(username: String)
@@ -18,8 +19,8 @@ GET     /github/users/:username/repos     controllers.ApplicationController.getU
 GET     /github/users/:username/repos/:repoName     controllers.ApplicationController.getRepoItems(username: String, repoName: String)
 GET     /github/users/:username/repos/:repoName/*path     controllers.ApplicationController.getFromPath(username: String, repoName: String, path: String)
 
-GET     /github/create/form      controllers.ApplicationController.showCreateForm(username: String, repoName: String, path: String)
-POST     /github/create/form      controllers.ApplicationController.createFormSubmit(username: String, repoName: String, path: String)
+GET     /github/create/form      controllers.ApplicationController.showCreateForm(username: String, repoName: String, path: Option[String])
+POST     /github/create/form      controllers.ApplicationController.createFormSubmit(username: String, repoName: String, path: Option[String])
 GET     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.showUpdateForm(username: String, repoName: String, path: String)
 POST     /github/update/form/:username/:repoName/*path      controllers.ApplicationController.updateFormSubmit(username: String, repoName: String, path: String)
 GET     /github/delete/form/:username/:repoName/*path      controllers.ApplicationController.showDeleteForm(username: String, repoName: String, path: String)

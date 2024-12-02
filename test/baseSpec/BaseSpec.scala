@@ -37,24 +37,14 @@ trait BaseSpecWithApplication extends BaseSpec with GuiceOneServerPerSuite with 
   implicit val messagesApi: MessagesApi = app.injector.instanceOf[MessagesApi]
   lazy val injector: Injector = app.injector
 
+  // called to create app - use a separate test database
   override def fakeApplication(): Application =
     new GuiceApplicationBuilder()
       .configure(Map(
-        "mongodb.uri"                                    -> "mongodb://localhost:27017/githubTutorial"
+        "mongodb.uri" -> "mongodb://localhost:27017/githubTutorialTest"
       ))
       .build()
 
-
+  // contains fakeRequest and buildGet, buildPost, etc
   protected val testRequest: TestRequest = new TestRequest(messagesApi)
-
-//  lazy val fakeRequest: FakeRequest[AnyContentAsEmpty.type] =
-//    FakeRequest("", "").withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
-//  implicit val messages: Messages = messagesApi.preferred(fakeRequest)
-//
-//  // methods we can use in the tests to pass fake requests to the controller
-//  def buildPost(url: String): FakeRequest[AnyContentAsEmpty.type] =
-//    FakeRequest(POST, url).withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
-//
-//  def buildGet(url: String): FakeRequest[AnyContentAsEmpty.type] =
-//    FakeRequest(GET, url).withCSRFToken.asInstanceOf[FakeRequest[AnyContentAsEmpty.type]]
 }

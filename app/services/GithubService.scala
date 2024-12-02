@@ -39,7 +39,6 @@ class GithubService @Inject()(connector: GithubConnector) {
       "message" -> body.commitMessage,
       "content" -> encodedContent
     )
-    // println(requestBody)
     connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
 
@@ -50,7 +49,6 @@ class GithubService @Inject()(connector: GithubConnector) {
       "content" -> encodedContent,
       "sha" -> body.fileSHA
     )
-    // println(requestBody)
     connector.createUpdate(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
 
@@ -59,7 +57,6 @@ class GithubService @Inject()(connector: GithubConnector) {
       "message" -> body.commitMessage,
       "sha" -> body.fileSHA
     )
-//     println(requestBody)
     connector.delete(urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"), requestBody)
   }
 

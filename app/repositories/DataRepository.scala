@@ -11,7 +11,6 @@ import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
 
 @Singleton
 class DataRepository @Inject()(mongoComponent: MongoComponent)
@@ -37,7 +36,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       .recover{
         case _ => Left(APIError.BadAPIResponse(404, "Database collection not found"))
       }
-    }
+  }
 
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
     collection.insertOne(user).toFuture().map { insertResult =>
@@ -57,16 +56,10 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       Filters.equal("username", username)
     )
 
-//  private def bySpecifiedField(field: String, value: String): Bson =
-//    Filters.and(
-//      //      Filters.equal(field, value)
-//      Filters.regex(field, s".*${value}.*", "i") // case-insensitive regex filter, containing search value
-//    )
-
   def read(username: String): Future[Either[APIError, UserModel]] = {
     collection.find(byUsername(username)).headOption.flatMap {
       case Some(data) => Future(Right(data))
-      case None => Future(Left(APIError.BadAPIResponse(404, "User not found")))
+      case None => Future(Left(APIError.BadAPIResponse(404, "User not found in database")))
     }.recover {
       case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to search for user: ${e.getMessage}"))
     }
@@ -82,8 +75,8 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
         if (updateResult.wasAcknowledged) {
           updateResult.getMatchedCount match {
             case 1 => Right(updateResult)
-            case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
-            case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple documents with same username found"))
+            case 0 => Left(APIError.BadAPIResponse(404, "User not found in database"))
+            case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
           }
         } else {
           Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
@@ -96,7 +89,6 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
 
   private def isIntegerString(value: String): Boolean = value.forall(Character.isDigit)
 
-  // field
   def updateWithValue(username: String, field: UserModelFields.Value, newValue: String): Future[Either[APIError, result.UpdateResult]] = {
     field match {
       case UserModelFields.location =>
@@ -105,7 +97,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
             if (updateResult.wasAcknowledged) {
               updateResult.getMatchedCount match {
                 case 1 => Right(updateResult)
-                case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+                case 0 => Left(APIError.BadAPIResponse(404, "User not found in database"))
                 case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
               }
             } else {
@@ -121,7 +113,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
               if (updateResult.wasAcknowledged) {
                 updateResult.getMatchedCount match {
                   case 1 => Right(updateResult)
-                  case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+                  case 0 => Left(APIError.BadAPIResponse(404, "User not found in database"))
                   case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users with same username found"))
                 }
               } else {
@@ -131,7 +123,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
             case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
           }
         } else { // isIntegerString(newValue) == false
-          Future(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
+          Future.successful(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
         }
     }
   }
@@ -143,7 +135,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       if (deleteResult.wasAcknowledged) {
         deleteResult.getDeletedCount match {
           case 1 => Right(deleteResult)
-          case 0 => Left(APIError.BadAPIResponse(404, "User not found"))
+          case 0 => Left(APIError.BadAPIResponse(404, "User not found in database"))
           case _ => Left(APIError.BadAPIResponse(500, "Error: Multiple users deleted"))
         }
       } else {
@@ -155,7 +147,21 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   }
 
   // remove all data from Mongo with the same collection name
-  def deleteAll(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
+  def deleteAll(): Future[Either[APIError, result.DeleteResult]] = {
+    collection.deleteMany(empty()).toFuture().map{ deleteResult =>
+      if (deleteResult.wasAcknowledged) {
+        deleteResult.getDeletedCount match {
+          case 0 => Left(APIError.BadAPIResponse(404, "No users found in database"))
+          case _ => Right(deleteResult)
+        }
+      } else {
+        Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
+      }
+    }.recover {
+      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to delete all users: ${e.getMessage}"))
+    }
+  }
+  def deleteAllForTesting(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
 }
 
 @ImplementedBy(classOf[DataRepository])
@@ -163,10 +169,10 @@ trait DataRepositoryTrait {
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]
   def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]]
   def read(username: String): Future[Either[APIError, UserModel]]
-//  def readBySpecifiedField(field: String, value: String): Future[Either[APIError, Seq[DataModel]]]
   def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]]
   def updateWithValue(username: String, field: UserModelFields.Value, newValue: String): Future[Either[APIError, result.UpdateResult]]
   def delete(username: String): Future[Either[APIError, result.DeleteResult]]
+  def deleteAll(): Future[Either[APIError, result.DeleteResult]]
 }
 
 object UserModelFields extends Enumeration {

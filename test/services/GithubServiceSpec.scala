@@ -11,7 +11,7 @@ import play.api.libs.json._
 
 import java.time.Instant
 import java.util.Base64
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with GuiceOneAppPerSuite {
   val mockConnector = mock[GithubConnector]
@@ -221,12 +221,12 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     "return an error" in {
       (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
         .expects(url, requestBody, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Path not found")))
         .once()
 
       whenReady(testService.deleteGithubFile(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
         path = "invalid//file.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Path not found"))
       }
     }
   }
@@ -310,12 +310,12 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     "return an error for a delete call" in {
       (mockConnector.delete(_: String, _: JsObject)(_: ExecutionContext))
         .expects(url, deleteBody, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Path not found")))
         .once()
 
       whenReady(testService.processRequestFromForm(urlOverride = Some(url), username = "matthew-goh", repoName = "test-repo",
         path = "invalid//file.txt", body = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")).value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Path not found"))
       }
     }
   }
