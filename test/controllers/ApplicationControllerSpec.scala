@@ -61,7 +61,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(listingResult) should include ("Account created: 07 Nov 2022 09:42")
     }
 
-    "show 'no users found' if the database is empty" in {
+    "show 'No users found' if the database is empty" in {
       val listingResult: Future[Result] = TestApplicationController.listAllUsers()(FakeRequest())
       status(listingResult) shouldBe Status.OK
       contentAsString(listingResult) should include ("No users found")
@@ -90,12 +90,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a NotFound if the user is not found" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
         .expects(None, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getUserDetails(username = "??")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
-      contentAsString(searchResult) should include ("User not found")
+      contentAsString(searchResult) should include ("Bad response from upstream: Not Found")
     }
   }
 
@@ -133,7 +133,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(addUserResult) should include ("User added successfully!")
     }
 
-    "return a BadRequest if the user is already in the database" in {
+    "return an InternalServerError if the user is already in the database" in {
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -145,7 +145,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "numFollowing" -> "2"
       )
       val addUserResult: Future[Result] = TestApplicationController.addUser()(addUserRequest)
-      status(addUserResult) shouldBe Status.BAD_REQUEST
+      status(addUserResult) shouldBe Status.INTERNAL_SERVER_ERROR
       contentAsString(addUserResult) should include ("Bad response from upstream: User already exists in database")
     }
   }
@@ -160,9 +160,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(deleteResult) should include ("User removed from database successfully!")
     }
 
-    "return a BadRequest if the user could not be found" in {
+    "return a NotFound if the user could not be found" in {
       val deleteResult: Future[Result] = TestApplicationController.deleteUser("user1")(FakeRequest())
-      status(deleteResult) shouldBe Status.BAD_REQUEST
+      status(deleteResult) shouldBe Status.NOT_FOUND
       contentAsString(deleteResult) should include ("Bad response from upstream: User not found in database")
     }
   }
@@ -186,10 +186,10 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
     }
 
-    "return a NotFound if there are no users in the database" in {
+    "return the correct message if there are no users in the database" in {
       val deleteResult: Future[Result] = TestApplicationController.deleteAll()(FakeRequest())
-      status(deleteResult) shouldBe Status.NOT_FOUND
-      contentAsString(deleteResult) should include ("No users to delete. Action completed successfully!")
+      status(deleteResult) shouldBe Status.OK
+      contentAsString(deleteResult) should include ("No users in database. Action completed successfully!")
     }
   }
 
@@ -210,12 +210,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a NotFound if the user is not found" in {
       (mockGithubService.getGithubRepos(_: Option[String], _: String)(_: ExecutionContext))
         .expects(None, "??", *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getUserRepos(username = "??")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
-      contentAsString(searchResult) should include ("User not found")
+      contentAsString(searchResult) should include ("Bad response from upstream: Not Found")
     }
   }
 
@@ -236,12 +236,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a NotFound if the repository is not found" in {
       (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
         .expects(None, "matthew-goh", "abc", "", *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getRepoItems(username = "matthew-goh", repoName = "abc")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
-      contentAsString(searchResult) should include ("User or repository not found")
+      contentAsString(searchResult) should include ("Bad response from upstream: Not Found")
     }
   }
 
@@ -323,7 +323,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(createFileResult) shouldBe "Bad response from upstream: User or repository not found"
     }
 
-    "return a BadRequest if another API error occurred" in {
+    "return an UnprocessableEntity if the path is invalid" in {
       (mockGithubService.createGithubFile(_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext))
         .expects(None, "matthew-goh", "test-repo", "invalid//testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "path contains a malformed path component")))
@@ -331,7 +331,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/create/matthew-goh/repos/test-repo/invalid//testfile.txt").withBody[JsValue](Json.toJson(body))
       val createFileResult: Future[Result] = TestApplicationController.createFile("matthew-goh", "test-repo", "invalid//testfile.txt")(request)
-      status(createFileResult) shouldBe Status.BAD_REQUEST
+      status(createFileResult) shouldBe Status.UNPROCESSABLE_ENTITY
       contentAsString(createFileResult) shouldBe "Bad response from upstream: path contains a malformed path component"
     }
 
@@ -373,18 +373,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(createFileResult) should include ("testfile.txt")
     }
 
-    "detect an invalid file name" in {
-      val createFileRequest: FakeRequest[AnyContentAsFormUrlEncoded] = testRequest.buildPost("/github/create/form").withFormUrlEncodedBody(
-        "fileName" -> "invalid//file",
-        "commitMessage" -> "Test commit",
-        "fileContent" -> "text"
-      )
-      val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
-      status(createFileResult) shouldBe Status.BAD_REQUEST
-      contentAsString(createFileResult) should include ("invalid//file")
-    }
-
-    "return a BadRequest if the file already exists" in {
+    "return an UnprocessableEntity if the file already exists" in {
       (mockGithubService.processRequestFromForm[CreateRequestBody](_: Option[String], _: String, _: String, _: String, _: CreateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[CreateRequestBody]))
         .expects(None, "matthew-goh", "test-repo", "folder2/testfile.txt", body, *, mockGithubService.ValidRequest.CreateRequest)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "Invalid request.\n\n\"sha\" wasn't supplied.")))
@@ -396,7 +385,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "fileContent" -> "Test file content"
       )
       val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
-      status(createFileResult) shouldBe Status.BAD_REQUEST
+      status(createFileResult) shouldBe Status.UNPROCESSABLE_ENTITY
       contentAsString(createFileResult) should include ("File already exists")
     }
   }
@@ -428,7 +417,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(updateFileResult) shouldBe "Bad response from upstream: User or repository not found"
     }
 
-    "return a BadRequest if another API error occurred" in {
+    "return a Conflict if the sha does not match" in {
       (mockGithubService.updateGithubFile(_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext))
         .expects(None, "matthew-goh", "test-repo", "testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(409, "sha does not match")))
@@ -436,7 +425,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val request: FakeRequest[JsValue] = testRequest.buildPut("/github/update/matthew-goh/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
       val updateFileResult: Future[Result] = TestApplicationController.updateFile("matthew-goh", "test-repo", "testfile.txt")(request)
-      status(updateFileResult) shouldBe Status.BAD_REQUEST
+      status(updateFileResult) shouldBe Status.CONFLICT
       contentAsString(updateFileResult) shouldBe "Bad response from upstream: sha does not match"
     }
 
@@ -479,7 +468,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(updateFileResult) should include ("New file content")
     }
 
-    "return a BadRequest if the update failed" in {
+    "return a Forbidden if authentication failed" in {
       (mockGithubService.processRequestFromForm[UpdateRequestBody](_: Option[String], _: String, _: String, _: String, _: UpdateRequestBody)(_: ExecutionContext, _: mockGithubService.ValidRequest[UpdateRequestBody]))
         .expects(None, "matthew-goh", "test-repo", "folder1/testfile.txt", body, *, mockGithubService.ValidRequest.UpdateRequest)
         .returning(EitherT.leftT(APIError.BadAPIResponse(403, "Authentication failed")))
@@ -491,7 +480,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
         "newFileContent" -> "New file content"
       )
       val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
-      status(updateFileResult) shouldBe Status.BAD_REQUEST
+      status(updateFileResult) shouldBe Status.FORBIDDEN
       contentAsString(updateFileResult) should include ("Bad response from upstream: Authentication failed")
     }
   }
@@ -514,16 +503,16 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "return a NotFound if the username, repository or file does not exist" in {
       (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
         .expects(None, "abc", "test-repo", "testfile.txt", body, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Path not found")))
         .once()
 
       val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/abc/repos/test-repo/testfile.txt").withBody[JsValue](Json.toJson(body))
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("abc", "test-repo", "testfile.txt")(request)
       status(deleteFileResult) shouldBe Status.NOT_FOUND
-      contentAsString(deleteFileResult) shouldBe "Bad response from upstream: Not found"
+      contentAsString(deleteFileResult) shouldBe "Bad response from upstream: Path not found"
     }
 
-    "return a BadRequest if another API error occurred" in {
+    "return an UnprocessableEntity if the path is invalid" in {
       (mockGithubService.deleteGithubFile(_: Option[String], _: String, _: String, _: String, _: DeleteRequestBody)(_: ExecutionContext))
         .expects(None, "matthew-goh", "test-repo", "/testfile.txt", body, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(422, "path cannot start with a slash")))
@@ -531,7 +520,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
       val request: FakeRequest[JsValue] = testRequest.buildDelete("/github/delete/matthew-goh/repos/test-repo//testfile.txt").withBody[JsValue](Json.toJson(body))
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFile("matthew-goh", "test-repo", "/testfile.txt")(request)
-      status(deleteFileResult) shouldBe Status.BAD_REQUEST
+      status(deleteFileResult) shouldBe Status.UNPROCESSABLE_ENTITY
       contentAsString(deleteFileResult) shouldBe "Bad response from upstream: path cannot start with a slash"
     }
 
@@ -560,6 +549,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
       status(deleteFileResult) shouldBe Status.OK
       contentAsString(deleteFileResult) should include ("File deleted successfully!")
+      contentAsString(deleteFileResult) should include ("Back to Folder")
     }
 
     "detect a form with errors" in {
@@ -610,13 +600,13 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsJson(createdResult).as[UserModel] shouldBe userModel
     }
 
-    "return a BadRequest if the user is already in the database" in {
+    "return an InternalServerError if the user is already in the database" in {
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val duplicateRequest: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val duplicateResult: Future[Result] = TestApplicationController.create()(duplicateRequest)
-      status(duplicateResult) shouldBe Status.BAD_REQUEST
+      status(duplicateResult) shouldBe Status.INTERNAL_SERVER_ERROR
       contentAsString(duplicateResult) shouldBe "Bad response from upstream: User already exists in database"
     }
 
@@ -668,10 +658,10 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(badUpdateResult) shouldBe "Invalid request body"
     }
 
-    "return a BadRequest if the user could not be found" in { // upsert(false)
+    "return a NotFound if the user could not be found" in { // upsert(false)
       val updateRequest: FakeRequest[JsValue] = testRequest.buildPut("/api/${userModel.username}").withBody[JsValue](Json.toJson(newUserModel))
       val updateResult = TestApplicationController.update("user1")(updateRequest)
-      status(updateResult) shouldBe Status.BAD_REQUEST
+      status(updateResult) shouldBe Status.NOT_FOUND
       contentAsString(updateResult) shouldBe "Bad response from upstream: User not found in database"
 
       // check that database is still empty
@@ -700,7 +690,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(updateResult) shouldBe "numFollowers of user user1 has been updated to: 20"
     }
 
-    "return a BadRequest if an invalid field is specified" in {
+    "return an BadRequest if an invalid field is specified" in {
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
@@ -718,12 +708,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(readResult) shouldBe "Bad response from upstream: New value must be an integer"
     }
 
-    "return a BadRequest if the user does not exist in the database" in {
+    "return a NotFound if the user does not exist in the database" in {
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Future[Result] = TestApplicationController.create()(request)
 
       val readResult: Future[Result] = TestApplicationController.updateWithValue("aaaa", "numFollowers", "1")(FakeRequest())
-      status(readResult) shouldBe Status.BAD_REQUEST
+      status(readResult) shouldBe Status.NOT_FOUND
       contentAsString(readResult) shouldBe "Bad response from upstream: User not found in database"
     }
   }
@@ -743,9 +733,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq()
     }
 
-    "return a BadRequest if the user could not be found" in {
+    "return a NotFound if the user could not be found" in {
       val deleteResult: Future[Result] = TestApplicationController.delete("user1")(FakeRequest())
-      status(deleteResult) shouldBe Status.BAD_REQUEST
+      status(deleteResult) shouldBe Status.NOT_FOUND
       contentAsString(deleteResult) shouldBe "Bad response from upstream: User not found in database"
     }
   }

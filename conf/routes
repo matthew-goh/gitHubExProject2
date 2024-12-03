@@ -40,6 +40,8 @@ DELETE     /api/:username     controllers.ApplicationController.delete(username:
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
 
+# invalid routes
+GET     /*path     controllers.ApplicationController.invalidRoute(path: String)
 
 # index: curl "localhost:9000/api" -i
 # create:

@@ -25,9 +25,10 @@ class GithubConnector @Inject()(ws: WSClient) {
       response.map {
         result => {
           val resultJson: JsValue = Json.parse(result.body)
+          val message: Option[String] = (resultJson \ "message").asOpt[String]
           resultJson.validate[Response] match {
             case JsSuccess(responseItem, _) => Right(responseItem)
-            case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
+            case JsError(_) => Left(APIError.BadAPIResponse(result.status, message.getOrElse("Unknown error")))
           }
         }
       }
@@ -53,9 +54,10 @@ class GithubConnector @Inject()(ws: WSClient) {
       response.map {
           result => {
             val resultJson: JsValue = Json.parse(result.body)
+            val message: Option[String] = (resultJson \ "message").asOpt[String]
             resultJson.validate[Seq[Response]] match {
               case JsSuccess(responseList, _) => Right(responseList)
-              case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
+              case JsError(_) => Left(APIError.BadAPIResponse(result.status, message.getOrElse("Unknown error")))
             }
           }
         }

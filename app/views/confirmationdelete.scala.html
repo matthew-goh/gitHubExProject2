@@ -1,0 +1,24 @@
+@import java.nio.file.Paths
+
+@(username: String, repoName: String, filePath: String)
+@main("Confirmation"){
+    <div class="container mb-5">
+        <h3>File deleted successfully!</h3>
+        <br>
+        @if(Paths.get(filePath).getParent != null) {
+            <p><a class="image-text-link" href="@routes.ApplicationController.getFromPath(username, repoName, Paths.get(filePath).getParent.toString)">
+                <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+                Back to Folder
+            </a></p>
+        } else {
+            <p><a class="image-text-link" href="@routes.ApplicationController.getRepoItems(username, repoName)">
+                <img class="link-icon" src="@routes.Assets.versioned("images/back-icon.png")" alt="Back Icon">
+                Back to Repository
+            </a></p>
+        }
+        <p><a class="image-text-link" href="@routes.HomeController.index">
+            <img class="link-icon" src="@routes.Assets.versioned("images/home-icon.png")" alt="Home Icon">
+            Back to Home
+        </a></p>
+    </div>
+}

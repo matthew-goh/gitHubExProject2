@@ -34,7 +34,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]  = {
     collection.find().toFuture().map{ users: Seq[UserModel] => Right(users) }
       .recover{
-        case _ => Left(APIError.BadAPIResponse(404, "Database collection not found"))
+        case e => Left(APIError.BadAPIResponse(500, s"Unable to find database collection: ${e.getMessage}"))
       }
   }
 
@@ -123,7 +123,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
             case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
           }
         } else { // isIntegerString(newValue) == false
-          Future.successful(Left(APIError.BadAPIResponse(500, "New value must be an integer")))
+          Future.successful(Left(APIError.BadAPIResponse(400, "New value must be an integer")))
         }
     }
   }
@@ -149,14 +149,8 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   // remove all data from Mongo with the same collection name
   def deleteAll(): Future[Either[APIError, result.DeleteResult]] = {
     collection.deleteMany(empty()).toFuture().map{ deleteResult =>
-      if (deleteResult.wasAcknowledged) {
-        deleteResult.getDeletedCount match {
-          case 0 => Left(APIError.BadAPIResponse(404, "No users found in database"))
-          case _ => Right(deleteResult)
-        }
-      } else {
-        Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
-      }
+      if (deleteResult.wasAcknowledged) Right(deleteResult)
+      else Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
     }.recover {
       case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to delete all users: ${e.getMessage}"))
     }
