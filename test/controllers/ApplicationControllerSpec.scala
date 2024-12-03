@@ -247,9 +247,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
   "ApplicationController .getFromPath()" should {
     "list the folder's items if the path is a folder" in {
-      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "scala101", "src", *)
-        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
+      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
+        .expects("matthew-goh", "scala101", "src", *)
+        .returning(Future(Right(GithubServiceSpec.testRepoItemsList)))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
@@ -260,14 +260,9 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "display the file's contents if the path is a file" in {
-      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
-        .once()
-
-      (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
-        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
+      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
+        .expects("matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
+        .returning(Future(Right(GithubServiceSpec.testFileInfo)))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src/main/scala/Hello.scala")(FakeRequest())
@@ -278,21 +273,76 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     }
 
     "return a NotFound if the path is invalid" in {
-      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "scala101", "badpath", *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
-        .once()
-
-      (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
-        .expects(None, "matthew-goh", "scala101", "badpath", *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
+        .expects("matthew-goh", "scala101", "badpath", *)
+        .returning(Future(Left(APIError.BadAPIResponse(404, "Not Found"))))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "badpath")(FakeRequest())
       status(searchResult) shouldBe NOT_FOUND
-      contentAsString(searchResult) should include ("Path not found")
+      contentAsString(searchResult) should include ("Bad response from upstream: Not Found")
+    }
+
+    "return an InternalServerError if getFolderOrFile() returns an unexpected type" in {
+      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
+        .expects("matthew-goh", "scala101", "src", *)
+        .returning(Future(Right("hello")))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
+      status(searchResult) shouldBe INTERNAL_SERVER_ERROR
+      contentAsString(searchResult) should include ("Unexpected type returned by service method")
     }
   }
+
+//  "ApplicationController .getFromPath()" should {
+//    "list the folder's items if the path is a folder" in {
+//      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+//        .expects(None, "matthew-goh", "scala101", "src", *)
+//        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
+//        .once()
+//
+//      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
+//      status(searchResult) shouldBe OK
+//      contentAsString(searchResult) should include ("Contents of folder: <i>src</i>")
+//      contentAsString(searchResult) should include (".gitignore")
+//      contentAsString(searchResult) should include ("project")
+//    }
+//
+//    "display the file's contents if the path is a file" in {
+//      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+//        .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
+//        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+//        .once()
+//
+//      (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+//        .expects(None, "matthew-goh", "scala101", "src/main/scala/Hello.scala", *)
+//        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
+//        .once()
+//
+//      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src/main/scala/Hello.scala")(FakeRequest())
+//      status(searchResult) shouldBe OK
+//      contentAsString(searchResult) should include ("Details of <i>Hello.scala</i>")
+//      contentAsString(searchResult) should include ("<b>Path:</b> scala101/src/main/scala/Hello.scala")
+//      contentAsString(searchResult) should include ("object Hello extends App")
+//    }
+//
+//    "return a NotFound if the path is invalid" in {
+//      (mockGithubService.getRepoItems(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+//        .expects(None, "matthew-goh", "scala101", "badpath", *)
+//        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+//        .once()
+//
+//      (mockGithubService.getFileInfo(_: Option[String], _: String, _: String, _: String)(_: ExecutionContext))
+//        .expects(None, "matthew-goh", "scala101", "badpath", *)
+//        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+//        .once()
+//
+//      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "badpath")(FakeRequest())
+//      status(searchResult) shouldBe NOT_FOUND
+//      contentAsString(searchResult) should include ("Path not found")
+//    }
+//  }
 
 
   ///// METHODS TO MODIFY GITHUB /////

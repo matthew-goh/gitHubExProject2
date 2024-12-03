@@ -71,11 +71,11 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     "return an error" in {
       (mockConnector.getList[GithubRepo](_: String)(_: OFormat[GithubRepo], _: ExecutionContext))
         .expects(url, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
       whenReady(testService.getGithubRepos(urlOverride = Some(url), username = "??").value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not Found"))
       }
     }
   }
@@ -97,11 +97,11 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     "return an error" in {
       (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
         .expects(url, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
       whenReady(testService.getRepoItems(urlOverride = Some(url), username = "??", repoName = "abc").value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not Found"))
       }
     }
   }
@@ -109,7 +109,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
   "getFileInfo" should {
     val url: String = "testUrl"
 
-    "return a user's details" in {
+    "return a file's information" in {
       (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
         .expects(url, *, *)
         .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
@@ -124,12 +124,68 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
     "return an error" in {
       (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
         .expects(url, *, *)
-        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not found")))
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
       whenReady(testService.getFileInfo(urlOverride = Some(url), username = "matthew-goh", repoName = "scala101",
         path = "badpath").value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not Found"))
+      }
+    }
+  }
+
+  "getFolderOrFile" should {
+    "return a list of files and folders in a GitHub repository folder" in {
+      (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
+        .expects("https://api.github.com/repos/matthew-goh/scala101/contents/src/main/scala", *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testRepoItemsJson.as[Seq[RepoItem]]))
+        .once()
+
+      whenReady(testService.getFolderOrFile(username = "matthew-goh", repoName = "scala101", path = "src/main/scala")) { result =>
+        result shouldBe Right(GithubServiceSpec.testRepoItemsList)
+      }
+    }
+
+    "return a file's information" in {
+      (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
+        .expects("https://api.github.com/repos/matthew-goh/scala101/contents/src/main/scala/Hello.scala", *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
+        .once()
+
+      (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
+        .expects("https://api.github.com/repos/matthew-goh/scala101/contents/src/main/scala/Hello.scala", *, *)
+        .returning(EitherT.rightT(GithubServiceSpec.testFileInfoJson.as[FileInfo]))
+        .once()
+
+      whenReady(testService.getFolderOrFile(username = "matthew-goh", repoName = "scala101", path = "src/main/scala/Hello.scala")) { result =>
+        result shouldBe Right(GithubServiceSpec.testFileInfo)
+      }
+    }
+
+    "return a NotFound error" in {
+      (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
+        .expects("https://api.github.com/repos/matthew-goh/scala101/contents/badpath", *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
+        .once()
+
+      (mockConnector.get[FileInfo](_: String)(_: OFormat[FileInfo], _: ExecutionContext))
+        .expects("https://api.github.com/repos/matthew-goh/scala101/contents/badpath", *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
+        .once()
+
+      whenReady(testService.getFolderOrFile(username = "matthew-goh", repoName = "scala101", path = "badpath")) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not Found"))
+      }
+    }
+
+    "return an InternalServerError if the API call returned no JSON" in {
+      (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
+        .expects("https://api.github.com/repos/matthew-goh/scala101/contents/badpath", *, *)
+        .returning(EitherT.leftT(APIError.BadAPIResponse(500, "Could not connect")))
+        .once()
+
+      whenReady(testService.getFolderOrFile(username = "matthew-goh", repoName = "scala101", path = "badpath")) { result =>
+        result shouldBe Left(APIError.BadAPIResponse(500, "Could not connect"))
       }
     }
   }

@@ -1,6 +1,6 @@
 package controllers
 
-import models.{CreateRequestBody, DeleteRequestBody, UpdateRequestBody, UserModel}
+import models.{CreateRequestBody, DeleteRequestBody, FileInfo, RepoItem, UpdateRequestBody, UserModel}
 import play.api.libs.json._
 import play.api.mvc._
 import play.filters.csrf.CSRF
@@ -31,7 +31,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   def listAllUsers(): Action[AnyContent] = Action.async {_ =>
     repoService.index().map{
       case Right(userList: Seq[UserModel]) => Ok(views.html.userlisting(userList))
-      case Left(error) => InternalServerError(views.html.unsuccessful(error.reason))
+      case Left(error) => Status(error.httpResponseStatus)(views.html.unsuccessful(error.reason))
     }
   }
 
@@ -94,29 +94,30 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
     }
   }
 
- // call just one service method?
+//  def getFromPath(username: String, repoName: String, path: String): Action[AnyContent] = Action.async { _ =>
+//    // first try getRepoItems to see if the path is a folder
+//    // use flatMap and Future.successful() here so that the inner map returns the required Future[Result], not Future[Future[Result]]
+//    service.getRepoItems(username = username, repoName = repoName, path = path).value.flatMap {
+//      case Right(repoItemList) => Future.successful(Ok(views.html.foldercontents(repoItemList, username, repoName, path)))
+//      case Left(e) if e.httpResponseStatus == 500 => Future.successful(InternalServerError(views.html.unsuccessful(e.reason)))
+//      case Left(_) => {
+//        // if there is an error, see if the path is a file
+//        service.getFileInfo(username = username, repoName = repoName, path = path).value.map {
+//          case Right(file) => Ok(views.html.filedetails(file, username, repoName))
+//          case Left(error) => Status(error.httpResponseStatus)(views.html.unsuccessful(error.reason))
+//        }
+//      }
+//    }
+//  }
+
   def getFromPath(username: String, repoName: String, path: String): Action[AnyContent] = Action.async { _ =>
-    // first try getRepoItems to see if the path is a folder
-    // use flatMap and Future.successful() here so that the inner map returns the required Future[Result], not Future[Future[Result]]
-    service.getRepoItems(username = username, repoName = repoName, path = path).value.flatMap {
-      case Right(repoItemList) => Future.successful(Ok(views.html.foldercontents(repoItemList, username, repoName, path)))
-      case Left(e) if e.httpResponseStatus == 500 => Future.successful(InternalServerError(views.html.unsuccessful(e.reason)))
-      case Left(_) => {
-        // if there is an error, see if the path is a file
-        service.getFileInfo(username = username, repoName = repoName, path = path).value.map {
-          case Right(file) => {
-//              val encodedLines = file.content.split("\n")
-//              val decodedLines = encodedLines.map(line => new String(Base64.getDecoder.decode(line)))
-//              val decodedContent = decodedLines.mkString("\n")
-//              val decodedContent = new String(Base64.getDecoder.decode(file.content.replaceAll("\n", "")))
-            Ok(views.html.filedetails(file, username, repoName))
-          }
-          case Left(error) => error.reason match {
-            case "Bad response from upstream: Not found" => NotFound(views.html.unsuccessful("Path not found"))
-            case _ => InternalServerError(views.html.unsuccessful(error.reason))
-          }
-        }
+    service.getFolderOrFile(username, repoName, path).map{
+      case Right(contents) => contents match {
+        case file: FileInfo => Ok(views.html.filedetails(file, username, repoName))
+        case repoItemList: Seq[RepoItem] => Ok(views.html.foldercontents(repoItemList, username, repoName, path))
+        case _ => InternalServerError(views.html.unsuccessful("Unexpected type returned by service method"))
       }
+      case Left(error) => Status(error.httpResponseStatus)(views.html.unsuccessful(error.reason))
     }
   }
 
@@ -151,8 +152,9 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
         } //if (folderPath.isEmpty) formData.fileName else s"$folderPath/${formData.fileName}"
         service.processRequestFromForm(username = username, repoName = repoName, path = path, body = formData).value.map{
           case Right(_) => Redirect(routes.ApplicationController.getFromPath(username, repoName, path))
-          case Left(error) => error.reason match {
-            case "Bad response from upstream: Invalid request.\n\n\"sha\" wasn't supplied." => UnprocessableEntity(views.html.unsuccessful("File already exists"))
+          case Left(error) => error.httpResponseStatus match {
+            case 422 if error.reason == "Bad response from upstream: Invalid request.\n\n\"sha\" wasn't supplied." =>
+              UnprocessableEntity(views.html.unsuccessful("File already exists"))
             case _ => Status(error.httpResponseStatus)(views.html.unsuccessful(error.reason))
           }
         }
@@ -249,7 +251,7 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
       case JsSuccess(userModel, _) =>
         repoService.create(userModel).map{
           case Right(_) => Created {request.body}
-          case Left(error) => InternalServerError {error.reason}
+          case Left(error) => Status(error.httpResponseStatus)(error.reason)
         }
       // dataRepository.create() is a Future[Either[APIError.BadAPIResponse, DataModel]
       case JsError(_) => Future.successful(BadRequest {"Invalid request body"}) // ensure correct return type

@@ -71,7 +71,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     "return a Not found error if the response cannot be mapped to a User" in {
       stubFor(get(urlEqualTo("/github/users/abc"))
         .willReturn(aResponse()
-          .withStatus(200)
+          .withStatus(404)
           .withHeader("Content-Type", "application/json")
           .withBody("""{
             |  "message": "Not Found",
@@ -80,7 +80,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
             |}""".stripMargin)))
 
       whenReady(TestGithubConnector.get[User](s"http://$Host:$Port/github/users/abc").value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not Found"))
       }
     }
 
@@ -179,7 +179,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
     "return a Not found error if the response cannot be mapped to a Seq[RepoItem]" in {
       stubFor(get(urlEqualTo("/github/repos/matthew-goh/abc/contents"))
         .willReturn(aResponse()
-          .withStatus(200)
+          .withStatus(404)
           .withHeader("Content-Type", "application/json")
           .withBody("""{
                       |  "message": "Not Found",
@@ -188,7 +188,7 @@ class GithubConnectorSpec extends BaseSpecWithApplication with BeforeAndAfterAll
                       |}""".stripMargin)))
 
       whenReady(TestGithubConnector.getList[RepoItem](s"http://$Host:$Port/github/repos/matthew-goh/abc/contents").value) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Not found"))
+        result shouldBe Left(APIError.BadAPIResponse(404, "Not Found"))
       }
     }
 

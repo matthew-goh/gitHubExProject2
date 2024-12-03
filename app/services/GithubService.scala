@@ -32,6 +32,19 @@ class GithubService @Inject()(connector: GithubConnector) {
     connector.get[FileInfo](urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"))
   }
 
+  // return type for Right is Any as it can be either  Seq[RepoItem] or FileInfo
+  def getFolderOrFile(username: String, repoName: String, path: String)(implicit ec: ExecutionContext): Future[Either[APIError, Any]] = {
+    val getRepoItemsResult = getRepoItems(username = username, repoName = repoName, path = path)
+    getRepoItemsResult.value.flatMap {
+      case Right(repoItemList) => Future.successful(Right(repoItemList))
+      case Left(error) if error.httpResponseStatus == 500 => Future.successful(Left(error))
+      case Left(_) => {
+        // if there is an error, see if the path is a file
+        getFileInfo(username = username, repoName = repoName, path = path).value
+      }
+    }
+  }
+
   // path passed into these methods is the entire path to file, including file name
   def createGithubFile(urlOverride: Option[String] = None, username: String, repoName: String, path: String, body: CreateRequestBody)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
     val encodedContent = Base64.getEncoder.encodeToString(body.fileContent.getBytes("UTF-8"))
