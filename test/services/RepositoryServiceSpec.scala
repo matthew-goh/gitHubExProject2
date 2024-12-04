@@ -57,11 +57,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.index _)
         .expects()
-        .returning(Future(Left(APIError.BadAPIResponse(404, "Database collection not found"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Unable to find database collection"))))
         .once()
 
       whenReady(testRepoService.index()) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(404, "Database collection not found"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Unable to find database collection"))
       }
     }
   }
@@ -221,17 +221,17 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error from DataRepository" in {
       (mockRepoTrait.updateWithValue(_: String, _: UserModelFields.Value, _: String))
         .expects("user1", UserModelFields.numFollowing, "xyz")
-        .returning(Future(Left(APIError.BadAPIResponse(500, "New value must be an integer"))))
+        .returning(Future(Left(APIError.BadAPIResponse(400, "New value must be an integer"))))
         .once()
 
       whenReady(testRepoService.updateWithValue("user1", "numFollowing", "xyz")) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "New value must be an integer"))
+        result shouldBe Left(APIError.BadAPIResponse(400, "New value must be an integer"))
       }
     }
 
     "return an error if an invalid field is provided" in {
       whenReady(testRepoService.updateWithValue("user1", "followers", "1")) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Invalid field to update"))
+        result shouldBe Left(APIError.BadAPIResponse(400, "Invalid field to update"))
       }
     }
   }

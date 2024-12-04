@@ -3,18 +3,18 @@ package connectors
 import cats.data.EitherT
 import models.APIError
 import play.api.libs.json._
-import play.api.libs.ws.{WSClient, WSResponse}
+import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 
 class GithubConnector @Inject()(ws: WSClient) {
   def get[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Response] = {
-//    val githubToken = sys.env.get("GITHUB_TOKEN")
-    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+    // val githubToken: Option[String] = sys.env.get("GITHUB_TOKEN")
+    val personalToken: Option[String] = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
-    val request = ws.url(url)
-    val requestWithAuth = personalToken match {
+    val request: WSRequest = ws.url(url)
+    val requestWithAuth: WSRequest = personalToken match {
       case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token")
       case None => request
     }
@@ -25,9 +25,10 @@ class GithubConnector @Inject()(ws: WSClient) {
       response.map {
         result => {
           val resultJson: JsValue = Json.parse(result.body)
+          val message: Option[String] = (resultJson \ "message").asOpt[String]
           resultJson.validate[Response] match {
             case JsSuccess(responseItem, _) => Right(responseItem)
-            case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
+            case JsError(_) => Left(APIError.BadAPIResponse(result.status, message.getOrElse("Unknown error")))
           }
         }
       }
@@ -38,11 +39,11 @@ class GithubConnector @Inject()(ws: WSClient) {
   }
 
   def getList[Response](url: String)(implicit rds: OFormat[Response], ec: ExecutionContext): EitherT[Future, APIError, Seq[Response]] = {
-//    val githubToken = sys.env.get("GITHUB_TOKEN")
-    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+    // val githubToken: Option[String] = sys.env.get("GITHUB_TOKEN")
+    val personalToken: Option[String] = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
-    val request = ws.url(url)
-    val requestWithAuth = personalToken match {
+    val request: WSRequest = ws.url(url)
+    val requestWithAuth: WSRequest = personalToken match {
       case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token")
       case None => request
     }
@@ -53,9 +54,10 @@ class GithubConnector @Inject()(ws: WSClient) {
       response.map {
           result => {
             val resultJson: JsValue = Json.parse(result.body)
+            val message: Option[String] = (resultJson \ "message").asOpt[String]
             resultJson.validate[Seq[Response]] match {
               case JsSuccess(responseList, _) => Right(responseList)
-              case JsError(_) => Left(APIError.BadAPIResponse(404, "Not found"))
+              case JsError(_) => Left(APIError.BadAPIResponse(result.status, message.getOrElse("Unknown error")))
             }
           }
         }
@@ -66,10 +68,10 @@ class GithubConnector @Inject()(ws: WSClient) {
   }
 
   def createUpdate(url: String, requestBody: JsObject)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
-    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+    val personalToken: Option[String]= sys.env.get("PERSONAL_GITHUB_TOKEN")
 
-    val request = ws.url(url)
-    val requestWithAuth = personalToken match {
+    val request: WSRequest = ws.url(url)
+    val requestWithAuth: WSRequest = personalToken match {
       case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token", "Accept" -> "application/vnd.github.v3+json")
       case None => request.addHttpHeaders("Accept" -> "application/vnd.github.v3+json")
     }
@@ -101,10 +103,10 @@ class GithubConnector @Inject()(ws: WSClient) {
   }
 
   def delete(url: String, requestBody: JsObject)(implicit ec: ExecutionContext): EitherT[Future, APIError, JsValue] = {
-    val personalToken = sys.env.get("PERSONAL_GITHUB_TOKEN")
+    val personalToken: Option[String] = sys.env.get("PERSONAL_GITHUB_TOKEN")
 
-    val request = ws.url(url)
-    val requestWithAuth = personalToken match {
+    val request: WSRequest = ws.url(url)
+    val requestWithAuth: WSRequest = personalToken match {
       case Some(token) => request.addHttpHeaders("Authorization" -> s"Bearer $token", "Accept" -> "application/vnd.github.v3+json")
       case None => request.addHttpHeaders("Accept" -> "application/vnd.github.v3+json")
     }

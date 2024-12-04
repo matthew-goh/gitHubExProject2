@@ -20,33 +20,32 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
   }
   // version called by ApplicationController addUser()
   def create(reqBody: Option[Map[String, Seq[String]]]): Future[Either[APIError.BadAPIResponse, UserModel]] = {
-    val missingErrorText = "Missing required value"
-    val invalidTypeErrorText = "Invalid data type"
-    val reqBodyValuesEither: Either[String, (String, Instant, Int, Int)] = for {
-      // if any required value is missing, the result is Left(missingErrorText)
-      username <- reqBody.flatMap(_.get("username").flatMap(_.headOption)).toRight(missingErrorText)
-      accountCreatedStr <- reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).toRight(missingErrorText)
-      numFollowersStr <- reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).toRight(missingErrorText)
-      numFollowingStr <- reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).toRight(missingErrorText)
-      // if any data type is invalid, the result is Left(invalidTypeErrorText)
-      accountCreated <- Try(Instant.parse(accountCreatedStr)).toOption.toRight(invalidTypeErrorText)
-      numFollowers <- Try(numFollowersStr.toInt).toOption.toRight(invalidTypeErrorText)
-      numFollowing <- Try(numFollowingStr.toInt).toOption.toRight(invalidTypeErrorText)
-    } yield (username, accountCreated, numFollowers, numFollowing)
+    val missingError = APIError.BadAPIResponse(400, "Missing required value")
+    val invalidTypeError = APIError.BadAPIResponse(400, "Invalid data type")
 
     // location can be blank
     val location: String = reqBody.flatMap(_.get("location").flatMap(_.headOption)).getOrElse("")
+
+    val reqBodyValuesEither: Either[APIError.BadAPIResponse, UserModel] = for {
+      // if any required value is missing, the result is Left(missingError)
+      username <- reqBody.flatMap(_.get("username").flatMap(_.headOption)).toRight(missingError)
+      accountCreatedStr <- reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).toRight(missingError)
+      numFollowersStr <- reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).toRight(missingError)
+      numFollowingStr <- reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).toRight(missingError)
+      // if any data type is invalid, the result is Left(invalidTypeError)
+      accountCreated <- Try(Instant.parse(accountCreatedStr)).toOption.toRight(invalidTypeError)
+      numFollowers <- Try(numFollowersStr.toInt).toOption.toRight(invalidTypeError)
+      numFollowing <- Try(numFollowingStr.toInt).toOption.toRight(invalidTypeError)
+    } yield UserModel(username, location, accountCreated, numFollowers, numFollowing)
+
     //    val username: String = reqBody.flatMap(_.get("username").flatMap(_.headOption)).get
     //    val accountCreated: Instant = Instant.parse(reqBody.flatMap(_.get("accountCreatedTime").flatMap(_.headOption)).get)
     //    val numFollowers: Int = reqBody.flatMap(_.get("numFollowers").flatMap(_.headOption)).get.toInt
     //    val numFollowing: Int = reqBody.flatMap(_.get("numFollowing").flatMap(_.headOption)).get.toInt
 
     reqBodyValuesEither match {
-      case Right((username, accountCreated, numFollowers, numFollowing)) => {
-        val user = UserModel(username, location, accountCreated, numFollowers, numFollowing)
-        repositoryTrait.create(user)
-      }
-      case Left(errorText) => Future.successful(Left(APIError.BadAPIResponse(400, errorText)))
+      case Right(user) => repositoryTrait.create(user)
+      case Left(error) => Future.successful(Left(error))
     }
   }
 
@@ -62,7 +61,7 @@ class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
     val fieldTry: Try[UserModelFields.Value] = Try(UserModelFields.withName(field))
     fieldTry match {
       case Success(fieldName) => repositoryTrait.updateWithValue(username, fieldName, newValue)
-      case Failure(_) => Future.successful(Left(APIError.BadAPIResponse(500, "Invalid field to update")))
+      case Failure(_) => Future.successful(Left(APIError.BadAPIResponse(400, "Invalid field to update")))
     }
   }
 

@@ -1,0 +1,10 @@
+@(path: String)
+
+@main("Page not found"){
+    <div class="container mb-5">
+        <h3>Page not found</h3>
+        <p>Invalid path: @path</p>
+        <br>
+        <p><a href="@routes.HomeController.index"> Back to Home </a></p>
+    </div>
+}
