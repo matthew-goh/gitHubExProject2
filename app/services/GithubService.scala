@@ -2,7 +2,7 @@ package services
 
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, FolderOrFileContents, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
 import play.api.libs.json._
 
 import java.util.Base64
@@ -32,8 +32,7 @@ class GithubService @Inject()(connector: GithubConnector) {
     connector.get[FileInfo](urlOverride.getOrElse(s"https://api.github.com/repos/$username/$repoName/contents/$path"))
   }
 
-  // return type for Right is Any as it can be either  Seq[RepoItem] or FileInfo
-  def getFolderOrFile(username: String, repoName: String, path: String)(implicit ec: ExecutionContext): Future[Either[APIError, Any]] = {
+  def getFolderOrFile(username: String, repoName: String, path: String)(implicit ec: ExecutionContext): Future[Either[APIError, FolderOrFileContents]] = {
     val getRepoItemsResult = getRepoItems(username = username, repoName = repoName, path = path)
     getRepoItemsResult.value.flatMap {
       case Right(repoItemList) => Future.successful(Right(repoItemList))

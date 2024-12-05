@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, RepoItemList, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -258,7 +258,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
     "list the folder's items if the path is a folder" in {
       (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
         .expects("matthew-goh", "scala101", "src", *)
-        .returning(Future(Right(GithubServiceSpec.testRepoItemsList)))
+        .returning(Future(Right(RepoItemList(GithubServiceSpec.testRepoItemsList))))
         .once()
 
       val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
@@ -292,16 +292,16 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(searchResult) should include ("Bad response from upstream: Not Found")
     }
 
-    "return an InternalServerError if getFolderOrFile() returns an unexpected type" in {
-      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
-        .expects("matthew-goh", "scala101", "src", *)
-        .returning(Future(Right("hello")))
-        .once()
-
-      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
-      status(searchResult) shouldBe INTERNAL_SERVER_ERROR
-      contentAsString(searchResult) should include ("Unexpected type returned by service method")
-    }
+//    "return an InternalServerError if getFolderOrFile() returns an unexpected type" in {
+//      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
+//        .expects("matthew-goh", "scala101", "src", *)
+//        .returning(Future(Right("hello")))
+//        .once()
+//
+//      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
+//      status(searchResult) shouldBe INTERNAL_SERVER_ERROR
+//      contentAsString(searchResult) should include ("Unexpected type returned by service method")
+//    }
   }
 
 //  "ApplicationController .getFromPath()" should {

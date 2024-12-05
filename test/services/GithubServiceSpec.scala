@@ -3,7 +3,7 @@ package services
 import baseSpec.BaseSpec
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, RepoItemList, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
@@ -142,7 +142,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
         .once()
 
       whenReady(testService.getFolderOrFile(username = "matthew-goh", repoName = "scala101", path = "src/main/scala")) { result =>
-        result shouldBe Right(GithubServiceSpec.testRepoItemsList)
+        result shouldBe Right(RepoItemList(GithubServiceSpec.testRepoItemsList))
       }
     }
 
@@ -162,7 +162,7 @@ class GithubServiceSpec extends BaseSpec with MockFactory with ScalaFutures with
       }
     }
 
-    "return a NotFound error" in {
+    "return a Not Found error" in {
       (mockConnector.getList[RepoItem](_: String)(_: OFormat[RepoItem], _: ExecutionContext))
         .expects("https://api.github.com/repos/matthew-goh/scala101/contents/badpath", *, *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
