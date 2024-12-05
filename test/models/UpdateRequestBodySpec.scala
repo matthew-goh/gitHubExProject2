@@ -5,8 +5,8 @@ import play.api.data._
 
 class UpdateRequestBodySpec extends BaseSpec {
   val updateForm: Form[UpdateRequestBody] = UpdateRequestBody.updateForm
-  val formData: UpdateRequestBody = UpdateRequestBody("Test commit", "New file content", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
-  val formDataInvalid: UpdateRequestBody = UpdateRequestBody("", "", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+  lazy val formData: UpdateRequestBody = UpdateRequestBody("Test commit", "New file content", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+  lazy val formDataInvalid: UpdateRequestBody = UpdateRequestBody("", "", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 
   "Update file form" should {
     "bind" when {

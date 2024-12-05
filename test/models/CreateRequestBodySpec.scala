@@ -5,8 +5,8 @@ import play.api.data._
 
 class CreateRequestBodySpec extends BaseSpec {
   val createForm: Form[CreateRequestBody] = CreateRequestBody.createForm
-  val formData: CreateRequestBody = CreateRequestBody("test.txt", "Test commit", "test content")
-  val formDataInvalid: CreateRequestBody = CreateRequestBody("badfile", "", "")
+  lazy val formData: CreateRequestBody = CreateRequestBody("test.txt", "Test commit", "test content")
+  lazy val formDataInvalid: CreateRequestBody = CreateRequestBody("badfile", "", "")
 
   "Create file form" should {
     "bind" when {

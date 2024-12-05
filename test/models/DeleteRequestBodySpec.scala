@@ -5,8 +5,8 @@ import play.api.data._
 
 class DeleteRequestBodySpec extends BaseSpec {
   val deleteForm: Form[DeleteRequestBody] = DeleteRequestBody.deleteForm
-  val formData: DeleteRequestBody = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
-  val formDataInvalid: DeleteRequestBody = DeleteRequestBody("", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+  lazy val formData: DeleteRequestBody = DeleteRequestBody("Test delete", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+  lazy val formDataInvalid: DeleteRequestBody = DeleteRequestBody("", "4753fddcf141a3798b6aed0e81f56c7f14535ed7")
 
   "Delete file form" should {
     "bind" when {
