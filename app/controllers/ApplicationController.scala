@@ -1,6 +1,6 @@
 package controllers
 
-import models.{CreateRequestBody, DeleteRequestBody, FileInfo, RepoItem, UpdateRequestBody, UserModel}
+import models.{CreateRequestBody, DeleteRequestBody, FileInfo, RepoItem, RepoItemList, UpdateRequestBody, UserModel}
 import play.api.libs.json._
 import play.api.mvc._
 import play.filters.csrf.CSRF
@@ -113,8 +113,9 @@ class ApplicationController @Inject()(repoService: RepositoryService, service: G
   def getFromPath(username: String, repoName: String, path: String): Action[AnyContent] = Action.async { _ =>
     service.getFolderOrFile(username, repoName, path).map{
       case Right(contents) => contents match {
+        // contents must have trait FolderOrFileContents - either RepoItemList or FileInfo
+        case repoItemList: RepoItemList => Ok(views.html.foldercontents(repoItemList.items, username, repoName, path))
         case file: FileInfo => Ok(views.html.filedetails(file, username, repoName))
-        case repoItemList: Seq[RepoItem] => Ok(views.html.foldercontents(repoItemList, username, repoName, path))
         case _ => InternalServerError(views.html.unsuccessful("Unexpected type returned by service method"))
       }
       case Left(error) => Status(error.httpResponseStatus)(views.html.unsuccessful(error.reason))

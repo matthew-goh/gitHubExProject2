@@ -16,29 +16,29 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
   implicit val executionContext: ExecutionContext = app.injector.instanceOf[ExecutionContext]
   val testRepoService = new RepositoryService(mockRepoTrait)
 
-  private val userModel: UserModel = UserModel(
+  private lazy val userModel: UserModel = UserModel(
     "user1",
     "",
     Instant.parse("2024-10-28T15:22:40Z"),
     0,
     2
   )
-  private val newUserModel: UserModel = UserModel(
+  private lazy val newUserModel: UserModel = UserModel(
     "user1",
     "London",
     Instant.parse("2024-10-28T15:22:40Z"),
     0,
     2
   )
-  private val userModel2: UserModel = UserModel(
+  private lazy val userModel2: UserModel = UserModel(
     "user2",
     "",
     Instant.parse("2022-11-07T09:42:16Z"),
     24,
     13
   )
-  private val testUpdateResult: UpdateResult = UpdateResult.acknowledged(1, 1, null)
-  private val testDeleteResult: DeleteResult = DeleteResult.acknowledged(1)
+  private lazy val testUpdateResult: UpdateResult = UpdateResult.acknowledged(1, 1, null)
+  private lazy val testDeleteResult: DeleteResult = DeleteResult.acknowledged(1)
 
   "index" should {
     "return a list of DataModels" in {
