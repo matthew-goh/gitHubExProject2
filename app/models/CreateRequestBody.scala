@@ -9,7 +9,7 @@ case class CreateRequestBody(fileName: String, commitMessage: String, fileConten
 object CreateRequestBody {
   implicit val formats: OFormat[CreateRequestBody] = Json.format[CreateRequestBody]
 
-  val fileNamePattern = "^([\\w\\s-]+/)*[\\w\\s-]+\\.[A-Za-z]{2,4}$".r
+  val fileNamePattern = "^([\\w\\s-]+/)*[\\w\\s-]+\\.(?:scala|[A-Za-z]{2,4})$".r
 
   val createForm: Form[CreateRequestBody] = Form(
     mapping(

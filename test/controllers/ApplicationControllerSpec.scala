@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, GithubRepo, RepoItem, RepoItemList, UpdateRequestBody, User, UserModel}
+import models.{APIError, CreateRequestBody, DeleteRequestBody, FolderOrFileContents, GithubRepo, RepoItem, RepoItemList, UpdateRequestBody, User, UserModel}
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
@@ -73,12 +73,12 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
   "ApplicationController .getUserDetails()" should {
     "display the user's details" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
-        .expects(None, *, *)
+        .expects(None, "matthew-goh", *)
         .returning(EitherT.rightT(GithubServiceSpec.testAPIResult.as[User]))
         .once()
 
       (mockGithubService.convertToUserModel(_: User))
-        .expects(*)
+        .expects(GithubServiceSpec.testAPIUser)
         .returning(GithubServiceSpec.testAPIUserModel)
         .once()
 
@@ -91,7 +91,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
     "return a NotFound if the user is not found" in {
       (mockGithubService.getGithubUser(_: Option[String], _: String)(_: ExecutionContext))
-        .expects(None, *, *)
+        .expects(None, "??", *)
         .returning(EitherT.leftT(APIError.BadAPIResponse(404, "Not Found")))
         .once()
 
@@ -173,7 +173,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 
   "ApplicationController .deleteAll() (test-only method)" should {
     "delete all users in the database" in {
-      // put in a for comprehension? or just use await?
       val request: FakeRequest[JsValue] = testRequest.buildPost("/api").withBody[JsValue](Json.toJson(userModel))
       val createdResult: Result = await(TestApplicationController.create()(request))
       createdResult.header.status shouldBe Status.CREATED
@@ -184,7 +183,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val createdResult2: Result = await(TestApplicationController.create()(request2))
       createdResult2.header.status shouldBe Status.CREATED
 
-//      Thread.sleep(100)
       val deleteResult: Future[Result] = TestApplicationController.deleteAll()(FakeRequest())
       status(deleteResult) shouldBe Status.OK
       contentAsString(deleteResult) should include ("All users removed from database successfully!")
@@ -292,16 +290,19 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       contentAsString(searchResult) should include ("Bad response from upstream: Not Found")
     }
 
-//    "return an InternalServerError if getFolderOrFile() returns an unexpected type" in {
-//      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
-//        .expects("matthew-goh", "scala101", "src", *)
-//        .returning(Future(Right("hello")))
-//        .once()
-//
-//      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
-//      status(searchResult) shouldBe INTERNAL_SERVER_ERROR
-//      contentAsString(searchResult) should include ("Unexpected type returned by service method")
-//    }
+    "return an InternalServerError if getFolderOrFile() returns an unexpected type" in {
+      case class UnexpectedResultType() extends FolderOrFileContents
+      val unexpectedResult: FolderOrFileContents = UnexpectedResultType()
+
+      (mockGithubService.getFolderOrFile(_: String, _: String, _: String)(_: ExecutionContext))
+        .expects("matthew-goh", "scala101", "src", *)
+        .returning(Future(Right(unexpectedResult)))
+        .once()
+
+      val searchResult: Future[Result] = TestApplicationController.getFromPath(username = "matthew-goh", repoName = "scala101", path = "src")(FakeRequest())
+      status(searchResult) shouldBe INTERNAL_SERVER_ERROR
+      contentAsString(searchResult) should include ("Unexpected type returned by service method")
+    }
   }
 
 //  "ApplicationController .getFromPath()" should {
@@ -430,6 +431,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(createFileResult) should include ("testfile.txt")
+      contentAsString(createFileResult) should include ("This field is required")
     }
 
     "return an UnprocessableEntity if the file already exists" in {
@@ -525,6 +527,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
       status(updateFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(updateFileResult) should include ("New file content")
+      contentAsString(updateFileResult) should include ("This field is required")
     }
 
     "return a Forbidden if authentication failed" in {
@@ -619,6 +622,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(deleteFileResult) should include ("4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+      contentAsString(deleteFileResult) should include ("This field is required")
     }
 
     "return a NotFound if the file is not found" in {
@@ -647,7 +651,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 //      val createdResult: Future[Result] = TestApplicationController.create()(request)
 //      status(createdResult) shouldBe Status.CREATED
 
-//      Thread.sleep(100)
       val indexResult: Future[Result] = TestApplicationController.index()(FakeRequest())
       status(indexResult) shouldBe Status.OK
       contentAsJson(indexResult).as[Seq[UserModel]] shouldBe Seq(userModel)
@@ -689,7 +692,6 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
 //      val createdResult: Future[Result] = TestApplicationController.create()(request)
 //      status(createdResult) shouldBe Status.CREATED
 
-//      Thread.sleep(100)
       val readResult: Future[Result] = TestApplicationController.read("user1")(FakeRequest())
       status(readResult) shouldBe Status.OK
       contentAsJson(readResult).as[UserModel] shouldBe userModel
