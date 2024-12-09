@@ -431,6 +431,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val createFileResult: Future[Result] = TestApplicationController.createFormSubmit("matthew-goh", "test-repo", folderPath = None)(createFileRequest)
       status(createFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(createFileResult) should include ("testfile.txt")
+      contentAsString(createFileResult) should include ("This field is required")
     }
 
     "return an UnprocessableEntity if the file already exists" in {
@@ -526,6 +527,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val updateFileResult: Future[Result] = TestApplicationController.updateFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(updateFileRequest)
       status(updateFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(updateFileResult) should include ("New file content")
+      contentAsString(updateFileResult) should include ("This field is required")
     }
 
     "return a Forbidden if authentication failed" in {
@@ -620,6 +622,7 @@ class ApplicationControllerSpec extends BaseSpecWithApplication with MockFactory
       val deleteFileResult: Future[Result] = TestApplicationController.deleteFormSubmit("matthew-goh", "test-repo", "folder1/testfile.txt")(deleteFileRequest)
       status(deleteFileResult) shouldBe Status.BAD_REQUEST
       contentAsString(deleteFileResult) should include ("4753fddcf141a3798b6aed0e81f56c7f14535ed7")
+      contentAsString(deleteFileResult) should include ("This field is required")
     }
 
     "return a NotFound if the file is not found" in {
