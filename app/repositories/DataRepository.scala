@@ -31,14 +31,14 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
   // For async operations (Future), use .recover or .recoverWith to handle exceptions.
   // The resulting value of a future is wrapped in either a Success or Failure type, which is a type of Try.
 
-  def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]  = {
+  def index(): Future[Either[APIError, Seq[UserModel]]] = {
     collection.find().toFuture().map{ users: Seq[UserModel] => Right(users) }
       .recover{
-        case e => Left(APIError.BadAPIResponse(500, s"Unable to find database collection: ${e.getMessage}"))
+        case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to search database collection: ${e.getMessage}"))
       }
   }
 
-  def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
+  def create(user: UserModel): Future[Either[APIError, UserModel]] = {
     collection.insertOne(user).toFuture().map { insertResult =>
       if (insertResult.wasAcknowledged) {
         Right(user)
@@ -47,7 +47,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       }
     }.recover {
       case e: MongoWriteException => Left(APIError.BadAPIResponse(500, "User already exists in database"))
-      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to add user: ${e.getMessage}"))
+      case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to add user: ${e.getMessage}"))
     }
   }
 
@@ -61,7 +61,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       case Some(data) => Future(Right(data))
       case None => Future(Left(APIError.BadAPIResponse(404, "User not found in database")))
     }.recover {
-      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to search for user: ${e.getMessage}"))
+      case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to search for user: ${e.getMessage}"))
     }
   }
 
@@ -82,7 +82,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
           Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
         }
     }.recover {
-      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
+      case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
     }
   }
   // updateResult is e.g. AcknowledgedUpdateResult{matchedCount=1, modifiedCount=1, upsertedId=null}
@@ -104,7 +104,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
               Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
             }
         }.recover {
-          case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
+          case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
         }
       case UserModelFields.numFollowers | UserModelFields.numFollowing =>
         if(isIntegerString(newValue)) {
@@ -120,7 +120,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
                 Left(APIError.BadAPIResponse(500, "Error: Update not acknowledged"))
               }
           }.recover {
-            case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
+            case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to update user: ${e.getMessage}"))
           }
         } else { // isIntegerString(newValue) == false
           Future.successful(Left(APIError.BadAPIResponse(400, "New value must be an integer")))
@@ -142,7 +142,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
         Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
       }
     }.recover {
-      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to delete user: ${e.getMessage}"))
+      case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to delete user: ${e.getMessage}"))
     }
   }
 
@@ -152,7 +152,7 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
       if (deleteResult.wasAcknowledged) Right(deleteResult)
       else Left(APIError.BadAPIResponse(500, "Error: Delete not acknowledged"))
     }.recover {
-      case e: Exception => Left(APIError.BadAPIResponse(500, s"Unable to delete all users: ${e.getMessage}"))
+      case e: Throwable => Left(APIError.BadAPIResponse(500, s"Unable to delete all users: ${e.getMessage}"))
     }
   }
   def deleteAllForTesting(): Future[Unit] = collection.deleteMany(empty()).toFuture().map(_ => ()) // needed for tests
@@ -160,8 +160,8 @@ class DataRepository @Inject()(mongoComponent: MongoComponent)
 
 @ImplementedBy(classOf[DataRepository])
 trait DataRepositoryTrait {
-  def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]]
-  def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]]
+  def index(): Future[Either[APIError, Seq[UserModel]]]
+  def create(user: UserModel): Future[Either[APIError, UserModel]]
   def read(username: String): Future[Either[APIError, UserModel]]
   def update(username: String, user: UserModel): Future[Either[APIError, result.UpdateResult]]
   def updateWithValue(username: String, field: UserModelFields.Value, newValue: String): Future[Either[APIError, result.UpdateResult]]

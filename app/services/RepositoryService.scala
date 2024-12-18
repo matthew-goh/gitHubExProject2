@@ -11,15 +11,15 @@ import scala.util.{Failure, Success, Try}
 
 class RepositoryService @Inject()(repositoryTrait: DataRepositoryTrait){
 
-  def index(): Future[Either[APIError.BadAPIResponse, Seq[UserModel]]] = {
+  def index(): Future[Either[APIError, Seq[UserModel]]] = {
     repositoryTrait.index()
   }
 
-  def create(user: UserModel): Future[Either[APIError.BadAPIResponse, UserModel]] = {
+  def create(user: UserModel): Future[Either[APIError, UserModel]] = {
     repositoryTrait.create(user)
   }
   // version called by ApplicationController addUser()
-  def create(reqBody: Option[Map[String, Seq[String]]]): Future[Either[APIError.BadAPIResponse, UserModel]] = {
+  def create(reqBody: Option[Map[String, Seq[String]]]): Future[Either[APIError, UserModel]] = {
     val missingError = APIError.BadAPIResponse(400, "Missing required value")
     val invalidTypeError = APIError.BadAPIResponse(400, "Invalid data type")
 

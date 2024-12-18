@@ -57,11 +57,11 @@ class RepositoryServiceSpec extends BaseSpec with MockFactory with ScalaFutures 
     "return an error" in {
       (mockRepoTrait.index _)
         .expects()
-        .returning(Future(Left(APIError.BadAPIResponse(500, "Unable to find database collection"))))
+        .returning(Future(Left(APIError.BadAPIResponse(500, "Unable to search database collection"))))
         .once()
 
       whenReady(testRepoService.index()) { result =>
-        result shouldBe Left(APIError.BadAPIResponse(500, "Unable to find database collection"))
+        result shouldBe Left(APIError.BadAPIResponse(500, "Unable to search database collection"))
       }
     }
   }
