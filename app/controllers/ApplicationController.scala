@@ -1,6 +1,6 @@
 package controllers
 
-import models.{CreateRequestBody, DeleteRequestBody, FileInfo, RepoItem, RepoItemList, UpdateRequestBody, UserModel}
+import models._
 import play.api.libs.json._
 import play.api.mvc._
 import play.filters.csrf.CSRF

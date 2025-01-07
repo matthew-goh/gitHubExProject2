@@ -2,7 +2,7 @@ package services
 
 import cats.data.EitherT
 import connectors.GithubConnector
-import models.{APIError, CreateRequestBody, DeleteRequestBody, FileInfo, FolderOrFileContents, GithubRepo, RepoItem, UpdateRequestBody, User, UserModel}
+import models._
 import play.api.libs.json._
 
 import java.util.Base64

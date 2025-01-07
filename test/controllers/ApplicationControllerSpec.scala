@@ -2,7 +2,7 @@ package controllers
 
 import baseSpec.BaseSpecWithApplication
 import cats.data.EitherT
-import models.{APIError, CreateRequestBody, DeleteRequestBody, FolderOrFileContents, GithubRepo, RepoItem, RepoItemList, UpdateRequestBody, User, UserModel}
+import models._
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
 import org.scalatest.concurrent.ScalaFutures
